@@ -21,6 +21,22 @@ const SCHEMA = {
       framework: { type: 'string', minLength: 1 },
       features: { type: 'array', items: { type: 'string' } },
       tags: { type: 'array', items: { type: 'string' } },
+      requiredCapabilities: {
+        type: 'array',
+        uniqueItems: true,
+        items: {
+          enum: [
+            'ai.chat',
+            'ai.streaming',
+            'ai.tools',
+            'ai.embeddings',
+            'ai.image-generation',
+            'ai.openrouter-plugins',
+            'ai.thinking-suffix',
+            'storage',
+          ],
+        },
+      },
       cover: { type: 'string', minLength: 1 },
       demo_url: { type: ['string', 'null'], format: 'uri' },
       author: { type: 'string', minLength: 1, maxLength: 200 },

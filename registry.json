@@ -52,6 +52,36 @@
     "added_at": "2026-05-23"
   },
   {
+    "slug": "chatbot",
+    "name": "AI Chat + Storage Starter",
+    "description": "Build a streaming AI chat app with persisted conversations and file attachments. AI and object storage are provided by the application's InsForge runtime, so generated projects only need the public InsForge endpoint and anon key.",
+    "category": "AI",
+    "framework": "nextjs",
+    "features": [
+      "Streaming AI Chat",
+      "Conversation History",
+      "File Attachments",
+      "Auth",
+      "InsForge Storage"
+    ],
+    "tags": [
+      "chatbot",
+      "ai",
+      "streaming",
+      "storage",
+      "cos"
+    ],
+    "requiredCapabilities": [
+      "ai.chat",
+      "ai.streaming",
+      "storage"
+    ],
+    "cover": "assets/covers/chatbot.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-08-18"
+  },
+  {
     "slug": "ai-pdf-chatbot",
     "name": "AI Notebook",
     "description": "An open-source thinking partner for your PDFs. Grounded in your own sources, with auto-generated mindmaps, spaced-repetition flashcards, two-host audio overviews, and RAG chat that highlights cited passages inside the source PDF. Self-hosted, your data, your model.",

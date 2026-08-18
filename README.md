@@ -50,7 +50,7 @@ If you prefer to inspect a template manually, clone this repository, move into a
 
 | Template | Framework | Best for | Includes |
 | --- | --- | --- | --- |
-| [`chatbot`](./chatbot) | Next.js App Router | Building an AI chat product on top of InsForge | Persisted chat history, file uploads, auth, storage, optional Vercel AI Gateway support |
+| [`chatbot`](./chatbot) | Next.js App Router | Building an AI chat product on the Insight Flow runtime | Persisted chat history, streaming AI, file uploads, auth, and Platform-backed object storage |
 | [`crm`](./crm) | Next.js App Router | Building an authenticated internal tool or CRM | Sales pipeline, lead management, client flows, RLS, seeded defaults |
 | [`e-commerce`](./e-commerce) | Next.js App Router | Launching a storefront with user accounts and checkout | Seeded catalog, product pages, cart, checkout, account area, analytics |
 

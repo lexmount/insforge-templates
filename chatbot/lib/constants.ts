@@ -1,5 +1,3 @@
-export const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-
 export const UPLOAD_BUCKET = 'chat-attachments';
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 export const ALLOWED_MIME_TYPES = [
@@ -48,15 +46,6 @@ export function resolveAttachmentMimeType(fileName: string, mimeType: string) {
 export function isAllowedAttachmentFile(file: { name: string; type: string }) {
   return ALLOWED_MIME_TYPES.includes(resolveAttachmentMimeType(file.name, file.type));
 }
-
-export const MODEL_OPTIONS = [
-  { id: 'openai/gpt-4o-mini', label: 'GPT-4o mini' },
-  { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-  { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2' },
-  { id: 'minimax/minimax-m2.1', label: 'MiniMax M2.1' },
-  { id: 'x-ai/grok-4.1-fast', label: 'Grok 4.1 Fast' },
-  { id: 'google/gemini-3-pro-image-preview', label: 'Gemini 3 Pro' },
-] as const;
 
 export const SUGGESTED_PROMPTS = [
   {

@@ -32,8 +32,8 @@ export function createInsforgeAIProvider(client: InsforgeClient): AIProvider {
   return {
     async streamCompletion(params: StreamCompletionParams) {
       const raw = await client.ai.chat.completions.create({
-        model: params.model,
         messages: params.messages,
+        ...(params.model ? { model: params.model } : {}),
         ...(params.fileParser && { fileParser: params.fileParser }),
         stream: true,
       });

@@ -8,7 +8,7 @@ import type {
   SendMessageResponse,
 } from '@/lib/types';
 import { DEFAULT_SYSTEM_PROMPT, getConfiguredModel, getInsforgeServerClient, createInsforgeServerClient } from '@/lib/insforge';
-import { createAIProvider, getAIProviderName } from '@/lib/ai';
+import { createAIProvider } from '@/lib/ai';
 import type { UserContentPart, FileParserOptions } from '@/lib/ai';
 
 type ChatSessionRow = ChatSummary & {
@@ -341,7 +341,7 @@ function buildFileParserOptions(attachments: Attachment[]): FileParserOptions {
 type PreparedMessageRequest = {
   safeOwner: ChatOwner;
   text: string;
-  requestedModel: string;
+  requestedModel?: string;
   token?: string | null;
   insforgeClient: InsforgeClient;
   chat: ChatSessionRow;
@@ -491,17 +491,7 @@ export async function streamMessage(input: {
         try {
           writeEvent({ type: 'chat', chat: prepared.chat });
 
-          const providerName = getAIProviderName();
           const provider = await createAIProvider(prepared.insforgeClient);
-
-          if (providerName !== 'insforge' && prepared.fileParser) {
-            writeEvent({
-              type: 'warning',
-              message:
-                'PDF file parsing is only supported with the InsForge AI provider. ' +
-                'Attached PDFs may not be fully processed by the current provider.',
-            });
-          }
 
           const stream = await provider.streamCompletion({
             model: prepared.requestedModel,

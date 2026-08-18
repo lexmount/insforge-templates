@@ -24,12 +24,16 @@ Templates listed on https://insforge.dev/templates live in this repo. Adding one
      "framework": "nextjs",
      "features": ["auth", "ai"],
      "tags": ["my-tag"],
+     "requiredCapabilities": ["ai.chat", "ai.streaming", "storage"],
      "cover": "assets/covers/my-template.png",
      "demo_url": "https://my-demo.us-east.insforge.app",
      "author": "Your Name",
      "added_at": "YYYY-MM-DD"
    }
    ```
+
+   `requiredCapabilities` is optional. Declare only capabilities the template actually uses;
+   Insight Flow rejects creation before provisioning when the active runtime cannot satisfy them.
 
 6. Open the PR. CI (`Validate Registry`) must be green. A maintainer will review and merge.
 

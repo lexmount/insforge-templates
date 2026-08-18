@@ -35,10 +35,8 @@ import { ChatMarkdown } from '@/components/chat-markdown';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  DEFAULT_MODEL,
   FILE_INPUT_ACCEPT,
   MAX_FILE_SIZE,
-  MODEL_OPTIONS,
   SUGGESTED_PROMPTS,
   isAllowedAttachmentFile,
 } from '@/lib/constants';
@@ -290,7 +288,6 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -646,7 +643,6 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
           ...ownerInfo.bodyField,
           chatId: activeChatId,
           input: trimmedInput,
-          model: selectedModel,
           attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
         }),
       });
@@ -1089,20 +1085,6 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
                     {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
                     <span>Attach file</span>
                   </Button>
-                  <div className="relative">
-                    <select
-                      className="h-9 appearance-none rounded-full bg-transparent px-3 pr-9 font-medium text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={selectedModel}
-                      onChange={(event) => setSelectedModel(event.target.value)}
-                    >
-                      {MODEL_OPTIONS.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronsUpDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
                 </div>
                 <Button
                   className="rounded-full"
