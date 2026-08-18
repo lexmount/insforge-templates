@@ -16,7 +16,7 @@ export type FileParserOptions =
   | undefined;
 
 export type StreamCompletionParams = {
-  model: string;
+  model?: string;
   messages: AIChatMessage[];
   fileParser?: FileParserOptions;
 };

@@ -1,5 +1,4 @@
 import { createClient } from '@insforge/sdk';
-import { DEFAULT_MODEL } from '@/lib/constants';
 
 let serverClient: ReturnType<typeof createClient> | null = null;
 
@@ -7,7 +6,7 @@ export const DEFAULT_SYSTEM_PROMPT =
   'You are a thoughtful assistant inside a product-grade web chatbot. Be concise, helpful, and clear.';
 
 export function getConfiguredModel() {
-  return process.env.INSFORGE_AI_MODEL?.trim() || DEFAULT_MODEL;
+  return process.env.INSFORGE_AI_MODEL?.trim() || undefined;
 }
 
 function getInsforgeConfig() {

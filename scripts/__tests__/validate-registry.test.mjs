@@ -47,6 +47,28 @@ describe('validateSchema', () => {
     expect(r.ok).toBe(false);
     expect(r.errors.join(' ')).toMatch(/slug/i);
   });
+
+  it('accepts supported capability declarations', () => {
+    const r = validateSchema([
+      entry('good-slug', {
+        requiredCapabilities: ['ai.chat', 'ai.streaming', 'storage'],
+      }),
+    ]);
+    expect(r).toEqual({ ok: true, errors: [] });
+  });
+
+  it('rejects unsupported or duplicate capability declarations', () => {
+    for (const requiredCapabilities of [
+      ['ai.chat', 'ai.chat'],
+      ['ai.chat', 'cos.direct'],
+    ]) {
+      const r = validateSchema([
+        entry('good-slug', { requiredCapabilities }),
+      ]);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join(' ')).toMatch(/requiredCapabilities/i);
+    }
+  });
 });
 
 describe('validateTemplate — filesystem', () => {

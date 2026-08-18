@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { clearAuthCookies, consumePkceVerifier, setAuthCookies, setPkceVerifier } from '@/lib/auth-cookies';
 import { getInsforgeServerClient } from '@/lib/insforge';
 
@@ -131,9 +132,16 @@ export async function resetPassword(newPassword: string, otp: string): Promise<A
 export async function getOAuthUrl(provider: string): Promise<{ url: string } | { error: string }> {
   const insforge = getInsforgeServerClient();
 
-  const origin = process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : process.env.NEXT_PUBLIC_APP_URL!;
+  const requestHeaders = await headers();
+  const host = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
+  const protocol = requestHeaders.get('x-forwarded-proto') ??
+    (process.env.NODE_ENV === 'development' ? 'http' : 'https');
+
+  if (!host) {
+    return { error: 'Unable to determine the application URL.' };
+  }
+
+  const origin = `${protocol}://${host}`;
 
   type OAuthProvider = Parameters<typeof insforge.auth.signInWithOAuth>[0]['provider'];
 
