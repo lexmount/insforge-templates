@@ -59,6 +59,66 @@ const SECRET_PATTERNS = [
   /\bxox[abp]-[A-Za-z0-9-]{10,}\b/,
 ];
 
+const PLATFORM_AI_SOURCE_EXTENSIONS = new Set([
+  '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json', '.vue', '.svelte',
+  '.py', '.go', '.java', '.kt', '.swift', '.rb', '.php', '.sh', '.yaml', '.yml',
+]);
+const PLATFORM_AI_IGNORED_DIRECTORIES = new Set([
+  '.git', '.next', 'build', 'coverage', 'dist', 'node_modules',
+]);
+const PLATFORM_AI_FORBIDDEN_BINDINGS = [
+  { pattern: /https?:\/\/openrouter\.ai\b/i, label: 'direct OpenRouter endpoint' },
+  { pattern: /https?:\/\/api\.deepseek\.com\b/i, label: 'direct DeepSeek endpoint' },
+  { pattern: /https?:\/\/api\.openai\.com\b/i, label: 'direct OpenAI endpoint' },
+  { pattern: /https?:\/\/api\.anthropic\.com\b/i, label: 'direct Anthropic endpoint' },
+  { pattern: /https?:\/\/[^\s"']*litellm[^\s"']*/i, label: 'direct LiteLLM endpoint' },
+  {
+    pattern: /\b(?:OPENROUTER|DEEPSEEK|OPENAI|ANTHROPIC|GEMINI|DASHSCOPE|AI)_API_KEY\b/,
+    label: 'provider API key environment variable',
+  },
+];
+
+function platformAISourceFiles(root) {
+  const files = [];
+  const visit = (dir) => {
+    for (const item of readdirSync(dir, { withFileTypes: true })) {
+      if (item.isDirectory()) {
+        if (!PLATFORM_AI_IGNORED_DIRECTORIES.has(item.name)) visit(join(dir, item.name));
+        continue;
+      }
+      if (!item.isFile()) continue;
+      const extension = item.name.slice(item.name.lastIndexOf('.'));
+      if (
+        (PLATFORM_AI_SOURCE_EXTENSIONS.has(extension) && item.name !== 'package-lock.json')
+        || item.name.startsWith('.env')
+      ) {
+        files.push(join(dir, item.name));
+      }
+    }
+  };
+  visit(root);
+  return files;
+}
+
+function validatePlatformManagedAI(entry, subdir) {
+  if (!entry.requiredCapabilities?.some((capability) => capability.startsWith('ai.'))) {
+    return [];
+  }
+  const errors = [];
+  for (const file of platformAISourceFiles(subdir)) {
+    const text = readFileSync(file, 'utf8');
+    for (const binding of PLATFORM_AI_FORBIDDEN_BINDINGS) {
+      if (binding.pattern.test(text)) {
+        errors.push(
+          `${entry.slug}/${file.slice(subdir.length + 1)}: ${binding.label} is forbidden; `
+          + 'templates declaring ai.* must call the platform-managed InsForge Model Gateway',
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 export function validateSchema(registry) {
   const errors = [];
   if (!validate(registry)) {
@@ -130,6 +190,7 @@ export async function validateTemplate(entry, repoRoot) {
       errors.push(`${entry.slug}: cover file ${entry.cover} not found`);
     }
   }
+  errors.push(...validatePlatformManagedAI(entry, subdir));
   // SQL parse check
   const migrationsDir = join(subdir, 'migrations');
   if (existsSync(migrationsDir) && statSync(migrationsDir).isDirectory()) {
