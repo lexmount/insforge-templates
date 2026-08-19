@@ -113,6 +113,36 @@ describe('validateTemplate — filesystem', () => {
       expect(r.errors.join(' ')).toMatch(/must be a relative path inside the repo/i);
     }
   });
+
+  it('accepts platform-managed AI source without provider bindings', async () => {
+    const r = await validateTemplate(
+      entry('good-slug', { requiredCapabilities: ['ai.chat'] }),
+      repoRoot,
+    );
+    expect(r).toEqual({ ok: true, errors: [] });
+  });
+
+  it('rejects provider endpoints and keys in templates declaring AI capabilities', async () => {
+    const r = await validateTemplate(
+      entry('provider-bypass-slug', {
+        cover: 'assets/covers/good-slug.png',
+        requiredCapabilities: ['ai.chat'],
+      }),
+      repoRoot,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/direct OpenRouter endpoint/i);
+    expect(r.errors.join(' ')).toMatch(/provider API key environment variable/i);
+    expect(r.errors.join(' ')).toMatch(/InsForge Model Gateway/i);
+  });
+
+  it('does not impose the managed-AI contract on templates without ai capabilities', async () => {
+    const r = await validateTemplate(
+      entry('provider-bypass-slug', { cover: 'assets/covers/good-slug.png' }),
+      repoRoot,
+    );
+    expect(r).toEqual({ ok: true, errors: [] });
+  });
 });
 
 describe('validateTemplate — SQL', () => {
