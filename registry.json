@@ -123,7 +123,7 @@
   {
     "slug": "web-research-agent",
     "name": "Web Research Agent",
-    "description": "Turn live web research into an evidence ledger. Run browser-backed investigations, synthesize supported findings, and keep every claim attached to its source for review.",
+    "description": "面向可追溯网页调研的 AI Agent：通过浏览器访问多个来源，生成带引用的结论，并将每条判断关联到原始证据，便于复核与事实核查。",
     "category": "AI",
     "framework": "react",
     "features": [
@@ -151,7 +151,7 @@
   {
     "slug": "website-change-monitor",
     "name": "Website Change Monitor",
-    "description": "Watch important pages without drowning in noise. Capture durable snapshots, compare before and after content, and use AI to prioritize the changes that deserve attention.",
+    "description": "持续监控重要网页：定期保存内容快照、对比前后变化，并由 AI 归纳变化内容、类型和优先级，减少无效提醒。",
     "category": "productivity",
     "framework": "react",
     "features": [
