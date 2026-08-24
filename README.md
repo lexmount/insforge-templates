@@ -53,6 +53,8 @@ If you prefer to inspect a template manually, clone this repository, move into a
 | [`chatbot`](./chatbot) | Next.js App Router | Building an AI chat product on the Insight Flow runtime | Persisted chat history, streaming AI, file uploads, auth, and Platform-backed object storage |
 | [`crm`](./crm) | Next.js App Router | Building an authenticated internal tool or CRM | Sales pipeline, lead management, client flows, RLS, seeded defaults |
 | [`e-commerce`](./e-commerce) | Next.js App Router | Launching a storefront with user accounts and checkout | Seeded catalog, product pages, cart, checkout, account area, analytics |
+| [`web-research-agent`](./web-research-agent) | React + Vite | Building evidence-led browser research workflows | Browser-backed investigations, cited synthesis, evidence ledger, auth, and RLS |
+| [`website-change-monitor`](./website-change-monitor) | React + Vite | Tracking meaningful changes across important web pages | Scheduled checks, durable snapshots, before/after diffs, AI classification, auth, and RLS |
 
 ### Auth Provider Overlays
 
@@ -100,6 +102,8 @@ For full setup details, go directly to the template README you want to use:
 - [`chatbot/README.md`](./chatbot/README.md)
 - [`crm/README.md`](./crm/README.md)
 - [`e-commerce/README.md`](./e-commerce/README.md)
+- [`web-research-agent/README.md`](./web-research-agent/README.md)
+- [`website-change-monitor/README.md`](./website-change-monitor/README.md)
 - [`nextjs/README.md`](./nextjs/README.md)
 - [`react/README.md`](./react/README.md)
 
