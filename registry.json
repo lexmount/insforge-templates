@@ -119,5 +119,61 @@
     "demo_url": "https://workspace.insforge.site",
     "author": "InsForge",
     "added_at": "2026-05-25"
+  },
+  {
+    "slug": "web-research-agent",
+    "name": "Web Research Agent",
+    "description": "Turn live web research into an evidence ledger. Run browser-backed investigations, synthesize supported findings, and keep every claim attached to its source for review.",
+    "category": "AI",
+    "framework": "react",
+    "features": [
+      "Browser-backed Research",
+      "Evidence Ledger",
+      "Cited Synthesis",
+      "Auth",
+      "Row Level Security"
+    ],
+    "tags": [
+      "research",
+      "browser-agent",
+      "citations",
+      "evidence",
+      "moli"
+    ],
+    "requiredCapabilities": [
+      "ai.chat"
+    ],
+    "cover": "web-research-agent/public/template-cover.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-08-24"
+  },
+  {
+    "slug": "website-change-monitor",
+    "name": "Website Change Monitor",
+    "description": "Watch important pages without drowning in noise. Capture durable snapshots, compare before and after content, and use AI to prioritize the changes that deserve attention.",
+    "category": "productivity",
+    "framework": "react",
+    "features": [
+      "Scheduled Page Checks",
+      "Before and After Diffs",
+      "AI Change Classification",
+      "Auth",
+      "Row Level Security"
+    ],
+    "tags": [
+      "monitoring",
+      "browser-agent",
+      "change-detection",
+      "diff",
+      "moli"
+    ],
+    "requiredCapabilities": [
+      "ai.chat"
+    ],
+    "cover": "website-change-monitor/public/template-cover.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-08-24"
   }
 ]
