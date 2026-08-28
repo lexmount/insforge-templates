@@ -121,6 +121,35 @@
     "added_at": "2026-05-25"
   },
   {
+    "slug": "insight-flow-agent-chat",
+    "name": "Insight Flow Agent Chat",
+    "description": "ChatGPT 风格的 Insight Flow Agent 对话应用：登录用户在独立设置页保存 API Key 与 model/agent 参数，聊天页通过 InsForge Edge Function 流式呈现 OpenAI-compatible SSE。",
+    "category": "AI",
+    "framework": "react",
+    "features": [
+      "ChatGPT-style UI",
+      "Backend Agent Settings",
+      "Streaming Edge Function",
+      "In-page Session Continuity",
+      "Auth and RLS"
+    ],
+    "tags": [
+      "insight-flow",
+      "agent",
+      "chat",
+      "streaming",
+      "sse",
+      "auth"
+    ],
+    "requiredCapabilities": [
+      "ai.streaming"
+    ],
+    "cover": "insight-flow-agent-chat/public/template-cover.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-08-28"
+  },
+  {
     "slug": "web-research-agent",
     "name": "Web Research Agent",
     "description": "面向可追溯网页调研的 AI Agent：通过浏览器访问多个来源，生成带引用的结论，并将每条判断关联到原始证据，便于复核与事实核查。",
