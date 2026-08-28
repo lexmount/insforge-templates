@@ -25,8 +25,28 @@ type ConfigInput = {
   disableTools?: boolean;
 };
 
+const errorMessages: Record<string, string> = {
+  method_not_allowed: '不支持该请求方法。',
+  AUTH_UNAUTHORIZED: '登录状态已失效，请重新登录。',
+  config_read_failed: '无法读取 Agent 配置。',
+  invalid_json: '请求内容不是有效的 JSON。',
+  invalid_action: '不支持该配置操作。',
+  agent_not_configured: '尚未配置 Insight Flow Agent。',
+  invalid_target: '请填写有效的 Model 或 Agent 参数。',
+  invalid_api_key: 'API Key 格式无效。',
+  api_key_required: '首次保存时必须填写 API Key。',
+  invalid_base_url: 'Base URL 必须是不带查询参数的 HTTPS 地址。',
+  private_base_url: '该地址指向本地或内网，请填写公网 HTTPS 地址。',
+  host_not_allowed: '该 Host 不在 INSIGHT_FLOW_ALLOWED_HOSTS 允许列表内。',
+  config_save_failed: '无法保存 Agent 配置。',
+};
+
 function json(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), {
+  const error = typeof body.error === 'string' ? body.error : '';
+  const payload = error && !body.message
+    ? { ...body, message: errorMessages[error] ?? '请求处理失败。' }
+    : body;
+  return new Response(JSON.stringify(payload), {
     status,
     headers: {
       ...corsHeaders,

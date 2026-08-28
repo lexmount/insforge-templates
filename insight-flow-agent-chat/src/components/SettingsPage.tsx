@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, Eye, EyeOff, KeyRound, LockKeyhole, Save, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { loadAgentConfig, revealAgentApiKey, saveAgentConfig } from '../lib/config';
+import { functionErrorMessage, loadAgentConfig, revealAgentApiKey, saveAgentConfig } from '../lib/config';
 import type { AgentConfig } from '../lib/config';
 
 type SettingsPageProps = {
@@ -33,7 +33,7 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
         setTarget(next.target ?? '');
         setDisableTools(Boolean(next.disableTools));
       })
-      .catch((reason) => active && setError(reason instanceof Error ? reason.message : '无法读取配置。'))
+      .catch((reason) => active && setError(functionErrorMessage(reason, '无法读取配置。')))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, []);
@@ -57,7 +57,7 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2400);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '保存失败。');
+      setError(functionErrorMessage(reason, '保存失败。'));
     } finally {
       setSaving(false);
     }
@@ -78,7 +78,7 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
       setApiKey(await revealAgentApiKey());
       setShowKey(true);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '无法读取 API Key。');
+      setError(functionErrorMessage(reason, '无法读取 API Key。'));
     } finally {
       setRevealing(false);
     }

@@ -106,4 +106,17 @@ describe('consumeInsightFlowSSE', () => {
       streamAgentReply({ message: 'hello' }, new AbortController().signal, () => undefined),
     ).rejects.toThrow('invalid upstream key（Insight Flow HTTP 401）');
   });
+
+  it('prefers a user-facing Function message over its machine error code', async () => {
+    mocks.rawFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: 'agent_not_configured',
+      message: '尚未配置 Insight Flow Agent，请先前往设置页。',
+    }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    await expect(
+      streamAgentReply({ message: 'hello' }, new AbortController().signal, () => undefined),
+    ).rejects.toThrow('尚未配置 Insight Flow Agent，请先前往设置页。');
+  });
 });

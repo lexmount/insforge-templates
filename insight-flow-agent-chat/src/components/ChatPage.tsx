@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { loadAgentConfig } from '../lib/config';
+import { functionErrorMessage, loadAgentConfig } from '../lib/config';
 import type { AgentConfig } from '../lib/config';
 import { streamAgentReply } from '../lib/stream';
 
@@ -54,7 +54,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
     let active = true;
     loadAgentConfig()
       .then((next) => active && setConfig(next))
-      .catch((reason) => active && setError(reason instanceof Error ? reason.message : '无法读取 Agent 配置。'))
+      .catch((reason) => active && setError(functionErrorMessage(reason, '无法读取 Agent 配置。')))
       .finally(() => active && setConfigLoading(false));
     return () => { active = false; abortRef.current?.abort(); };
   }, []);

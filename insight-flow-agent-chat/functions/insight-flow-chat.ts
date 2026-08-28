@@ -18,8 +18,29 @@ export type StoredConfig = {
   api_key: string;
 };
 
+const errorMessages: Record<string, string> = {
+  method_not_allowed: '不支持该请求方法。',
+  AUTH_UNAUTHORIZED: '登录状态已失效，请重新登录。',
+  invalid_json: '请求内容不是有效的 JSON。',
+  invalid_message: '请输入 1–32000 个字符的消息。',
+  config_read_failed: '无法读取 Agent 配置。',
+  agent_not_configured: '尚未配置 Insight Flow Agent，请先前往设置页。',
+  invalid_stored_target: '已保存的 Model 或 Agent 参数无效，请重新配置。',
+  invalid_stored_base_url: '已保存的 Base URL 无效或不允许访问，请重新配置。',
+  invalid_stored_api_key: '已保存的 API Key 无效，请重新配置。',
+  client_closed_request: '请求已取消。',
+  insight_flow_unreachable: '无法连接 Insight Flow。',
+  insight_flow_error: 'Insight Flow 返回了错误。',
+  empty_stream: 'Insight Flow 未返回可读的响应流。',
+  unexpected_response: 'Insight Flow 未返回 SSE 流式响应。',
+};
+
 function json(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), {
+  const error = typeof body.error === 'string' ? body.error : '';
+  const payload = error && !body.message
+    ? { ...body, message: errorMessages[error] ?? '请求处理失败。' }
+    : body;
+  return new Response(JSON.stringify(payload), {
     status,
     headers: {
       ...corsHeaders,

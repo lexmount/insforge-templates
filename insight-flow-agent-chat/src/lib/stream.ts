@@ -96,9 +96,9 @@ export async function streamAgentReply(
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as
-      | { error?: string; detail?: string; upstreamStatus?: number }
+      | { error?: string; message?: string; detail?: string; upstreamStatus?: number }
       | null;
-    const detail = payload?.detail || payload?.error || `请求失败（${response.status}）`;
+    const detail = payload?.detail || payload?.message || payload?.error || `请求失败（${response.status}）`;
     throw new Error(payload?.upstreamStatus ? `${detail}（Insight Flow HTTP ${payload.upstreamStatus}）` : detail);
   }
   if (!response.body) throw new Error('浏览器没有收到可读取的响应流。');

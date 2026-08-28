@@ -258,7 +258,12 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
       }),
     );
     assert(privateHostResponse.status === 422, 'trailing-dot localhost passed config validation');
-    assert((await privateHostResponse.json()).error === 'private_base_url', 'private host rejection reason was collapsed');
+    const privateHostError = await privateHostResponse.json();
+    assert(privateHostError.error === 'private_base_url', 'private host rejection reason was collapsed');
+    assert(
+      privateHostError.message === '该地址指向本地或内网，请填写公网 HTTPS 地址。',
+      'config error did not include a user-facing message',
+    );
 
     upstreamStatus = 401;
     const upstreamErrorResponse = await chatHandler(
@@ -271,6 +276,7 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
     const upstreamError = await upstreamErrorResponse.json();
     assert(upstreamErrorResponse.status === 502, 'upstream 401 was confused with an InsForge auth failure');
     assert(upstreamError.upstreamStatus === 401, 'upstream status was not preserved as metadata');
+    assert(typeof upstreamError.message === 'string' && upstreamError.message.length > 0, 'chat error did not include a message');
   } finally {
     globalThis.fetch = originalFetch;
     Deno.env.delete('INSFORGE_BASE_URL');
