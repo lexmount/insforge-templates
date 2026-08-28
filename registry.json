@@ -121,6 +121,34 @@
     "added_at": "2026-05-25"
   },
   {
+    "slug": "insight-flow-agent-chat",
+    "name": "Insight Flow Agent Chat",
+    "description": "连接任意 Insight Flow Agent 的安全流式对话工作台：用户提供自己的 API Key，通过 InsForge Edge Function 代理 OpenAI-compatible SSE，并可选择推荐的 model 参数或兼容 agent 参数。",
+    "category": "AI",
+    "framework": "react",
+    "features": [
+      "Insight Flow Agent Chat",
+      "Streaming Edge Function",
+      "Model and Agent Parameters",
+      "Continuous Sessions",
+      "Memory-only API Key"
+    ],
+    "tags": [
+      "insight-flow",
+      "agent",
+      "chat",
+      "streaming",
+      "sse"
+    ],
+    "requiredCapabilities": [
+      "ai.streaming"
+    ],
+    "cover": "insight-flow-agent-chat/public/template-cover.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-08-28"
+  },
+  {
     "slug": "web-research-agent",
     "name": "Web Research Agent",
     "description": "面向可追溯网页调研的 AI Agent：通过浏览器访问多个来源，生成带引用的结论，并将每条判断关联到原始证据，便于复核与事实核查。",
