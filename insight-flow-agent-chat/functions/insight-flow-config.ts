@@ -35,34 +35,49 @@ function json(status: number, body: Record<string, unknown>) {
   });
 }
 
+function ipv4Parts(value: string) {
+  const parts = value.split('.').map(Number);
+  return parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) ? parts : null;
+}
+
+function embeddedIPv4(value: string) {
+  const dotted = /^::(?:ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/.exec(value);
+  if (dotted) return ipv4Parts(dotted[1]);
+  const hex = /^::(?:(?:ffff:)(?:0:)?)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(value);
+  if (!hex) return null;
+  const high = Number.parseInt(hex[1], 16);
+  const low = Number.parseInt(hex[2], 16);
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+}
+
+function isNonPublicIPv4(parts: number[] | null) {
+  if (!parts) return false;
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && (b === 0 || b === 168)) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224;
+}
+
+export function isBlockedHostname(hostname: string) {
+  const host = hostname.toLowerCase();
+  const bare = host.replace(/^\[|\]$/g, '');
+  const privateIPv6 = bare === '::' || bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd') ||
+    /^fe[89a-f]/.test(bare);
+  return host === 'localhost' || host.endsWith('.localhost') || privateIPv6 ||
+    isNonPublicIPv4(ipv4Parts(host)) || isNonPublicIPv4(embeddedIPv4(bare));
+}
+
 function normalizeBaseUrl(raw: string) {
   const url = new URL(raw);
-  if (
-    url.protocol !== 'https:' || url.username || url.password || url.search ||
-    url.hash
-  ) {
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
     throw new Error('invalid_base_url');
   }
   const host = url.hostname.toLowerCase();
-  const ipv4 = host.split('.').map(Number);
-  const privateIPv4 = ipv4.length === 4 &&
-    ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) &&
-    (
-      ipv4[0] === 0 || ipv4[0] === 10 || ipv4[0] === 127 ||
-      (ipv4[0] === 169 && ipv4[1] === 254) ||
-      (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31) ||
-      (ipv4[0] === 192 && ipv4[1] === 168)
-    );
-  const normalizedIPv6 = host.replace(/^\[|\]$/g, '').toLowerCase();
-  const privateIPv6 = normalizedIPv6 === '::1' ||
-    normalizedIPv6.startsWith('fc') ||
-    normalizedIPv6.startsWith('fd') || /^fe[89ab]/.test(normalizedIPv6);
-  if (
-    host === 'localhost' || host.endsWith('.localhost') || privateIPv4 ||
-    privateIPv6
-  ) {
-    throw new Error('private_base_url');
-  }
+  if (isBlockedHostname(host)) throw new Error('private_base_url');
   const allowedHosts = (Deno.env.get('INSIGHT_FLOW_ALLOWED_HOSTS') ?? '')
     .split(',')
     .map((item: string) => item.trim().toLowerCase())
@@ -96,14 +111,14 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return json(401, { error: 'unauthorized' });
+  if (!token) return json(401, { error: 'AUTH_UNAUTHORIZED' });
   const client = createClient({
     baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
     accessToken: token,
   });
   const { data: identity } = await client.auth.getCurrentUser();
   const userId = identity?.user?.id;
-  if (!userId) return json(401, { error: 'unauthorized' });
+  if (!userId) return json(401, { error: 'AUTH_UNAUTHORIZED' });
 
   const { data: existingData, error: readError } = await client.database
     .from('insight_flow_agent_configs')
@@ -164,12 +179,13 @@ export default async function handler(req: Request): Promise<Response> {
     disable_tools: Boolean(input.disableTools),
     api_key: apiKey || existing?.api_key || '',
   };
-  const result = existing
-    ? await client.database.from('insight_flow_agent_configs').update(row).eq(
-      'user_id',
-      userId,
-    )
-    : await client.database.from('insight_flow_agent_configs').insert([row]);
+  const result = await client.database.rpc('save_insight_flow_agent_config', {
+    p_base_url: row.base_url,
+    p_target_mode: row.target_mode,
+    p_target: row.target,
+    p_disable_tools: row.disable_tools,
+    p_api_key: row.api_key,
+  });
   if (result.error) {
     return json(500, {
       error: 'config_save_failed',

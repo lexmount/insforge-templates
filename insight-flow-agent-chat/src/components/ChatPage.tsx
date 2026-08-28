@@ -94,8 +94,12 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
         (delta) => setMessages((current) => current.map((item) => (
           item.id === assistantId ? { ...item, content: item.content + delta } : item
         ))),
+        (nextSessionKey) => {
+          if (nextSessionKey) setSessionKey(nextSessionKey);
+        },
       );
       if (nextSessionKey) setSessionKey(nextSessionKey);
+      else setError('未收到会话标识，下一条消息可能会开启新会话。');
     } catch (reason) {
       if (controller.signal.aborted) {
         setMessages((current) => current.map((item) => (
@@ -125,9 +129,13 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
   }
 
   async function copyMessage(item: ChatMessage) {
-    await navigator.clipboard.writeText(item.content);
-    setCopiedId(item.id);
-    window.setTimeout(() => setCopiedId(null), 1400);
+    try {
+      await navigator.clipboard.writeText(item.content);
+      setCopiedId(item.id);
+      window.setTimeout(() => setCopiedId(null), 1400);
+    } catch {
+      setError('复制失败，请手动选择回复内容。');
+    }
   }
 
   const targetLabel = config?.target

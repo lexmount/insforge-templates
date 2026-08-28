@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
-import configHandler from '../functions/insight-flow-config.ts';
-import chatHandler from '../functions/insight-flow-chat.ts';
+import configHandler, { isBlockedHostname as configBlocksHostname } from '../functions/insight-flow-config.ts';
+import chatHandler, { isBlockedHostname as chatBlocksHostname } from '../functions/insight-flow-chat.ts';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -12,6 +12,7 @@ Deno.test('config endpoint requires a signed-in user token', async () => {
     new Request('https://app.example.com/functions/insight-flow-config'),
   );
   assert(response.status === 401, `expected 401, received ${response.status}`);
+  assert((await response.json()).error === 'AUTH_UNAUTHORIZED', 'config 401 is not refreshable by the SDK');
 });
 
 Deno.test('chat endpoint requires a signed-in user token', async () => {
@@ -23,6 +24,26 @@ Deno.test('chat endpoint requires a signed-in user token', async () => {
     }),
   );
   assert(response.status === 401, `expected 401, received ${response.status}`);
+  assert((await response.json()).error === 'AUTH_UNAUTHORIZED', 'chat 401 is not refreshable by the SDK');
+});
+
+Deno.test('both functions reject local, mapped, CGNAT, and unspecified IP hosts', () => {
+  const blocked = [
+    'localhost',
+    '127.0.0.1',
+    '100.64.0.1',
+    '[::]',
+    '[::1]',
+    '[::ffff:7f00:1]',
+    '[::ffff:127.0.0.1]',
+    '[::7f00:1]',
+  ];
+  for (const host of blocked) {
+    assert(configBlocksHostname(host), `config function allowed ${host}`);
+    assert(chatBlocksHostname(host), `chat function allowed ${host}`);
+  }
+  assert(!configBlocksHostname('flow.example.com'), 'config function blocked a public DNS host');
+  assert(!chatBlocksHostname('8.8.8.8'), 'chat function blocked a public IPv4 host');
 });
 
 Deno.test('authenticated config masks by default, reveals on request, and chat streams with the stored key', async () => {
@@ -37,6 +58,7 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
   };
   const originalFetch = globalThis.fetch;
   let upstreamAuthorization = '';
+  let upstreamStatus = 200;
   const upstreamCapture: { body: Record<string, unknown> | null } = {
     body: null,
   };
@@ -56,19 +78,19 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
         ),
       );
     }
+    if (url.pathname.endsWith('/rpc/save_insight_flow_agent_config')) {
+      return request.json().then((body) => {
+        databaseCapture.body = body as Record<string, unknown>;
+        return new Response('null', {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+    }
     if (
       url.pathname.startsWith(
         '/api/database/records/insight_flow_agent_configs',
       )
     ) {
-      if (request.method === 'PATCH') {
-        return request.json().then((body) => {
-          databaseCapture.body = body as Record<string, unknown>;
-          return new Response(JSON.stringify([stored]), {
-            headers: { 'Content-Type': 'application/json' },
-          });
-        });
-      }
       return Promise.resolve(
         new Response(JSON.stringify([stored]), {
           headers: { 'Content-Type': 'application/json' },
@@ -77,6 +99,14 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
     }
     if (url.hostname === 'flow.example.com') {
       upstreamAuthorization = request.headers.get('Authorization') ?? '';
+      if (upstreamStatus !== 200) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { message: 'invalid upstream key' } }), {
+            status: upstreamStatus,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
       return request.json().then((body) => {
         upstreamCapture.body = body as Record<string, unknown>;
         return new Response(
@@ -199,9 +229,21 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
       `save request returned ${saveResponse.status}`,
     );
     assert(
-      databaseCapture.body?.api_key === replacementKey,
+      databaseCapture.body?.p_api_key === replacementKey,
       'config save did not write the plaintext API key',
     );
+
+    upstreamStatus = 401;
+    const upstreamErrorResponse = await chatHandler(
+      new Request('https://app.example.com/functions/insight-flow-chat', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-jwt', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'hello again' }),
+      }),
+    );
+    const upstreamError = await upstreamErrorResponse.json();
+    assert(upstreamErrorResponse.status === 502, 'upstream 401 was confused with an InsForge auth failure');
+    assert(upstreamError.upstreamStatus === 401, 'upstream status was not preserved as metadata');
   } finally {
     globalThis.fetch = originalFetch;
     Deno.env.delete('INSFORGE_BASE_URL');

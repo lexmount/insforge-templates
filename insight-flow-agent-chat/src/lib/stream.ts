@@ -34,11 +34,15 @@ export async function consumeInsightFlowSSE(
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let receivedDone = false;
 
   const consumeBlock = (block: string) => {
     const data = eventData(block);
     if (!data) return false;
-    if (data === '[DONE]') return true;
+    if (data === '[DONE]') {
+      receivedDone = true;
+      return true;
+    }
 
     let payload: StreamDelta;
     try {
@@ -64,6 +68,7 @@ export async function consumeInsightFlowSSE(
       if (done) break;
     }
     if (buffer.trim() && consumeBlock(buffer)) return;
+    if (!receivedDone) throw new Error('Insight Flow 流式响应提前结束，请重试。');
   } finally {
     reader.releaseLock();
   }
@@ -78,6 +83,7 @@ export async function streamAgentReply(
   request: AgentChatRequest,
   signal: AbortSignal,
   onDelta: (text: string) => void,
+  onSessionKey?: (sessionKey: string | null) => void,
 ): Promise<string | null> {
   if (!insforge || !insforgeBaseUrl) throw new Error('InsForge 尚未连接。');
 
@@ -96,7 +102,8 @@ export async function streamAgentReply(
   }
   if (!response.body) throw new Error('浏览器没有收到可读取的响应流。');
 
-  const sessionKey = response.headers.get('X-InsightFlow-Session-Key');
+  const sessionKey = response.headers.get('X-InsightFlow-Session-Key') || request.sessionKey || null;
+  onSessionKey?.(sessionKey);
   await consumeInsightFlowSSE(response.body, onDelta);
   return sessionKey;
 }

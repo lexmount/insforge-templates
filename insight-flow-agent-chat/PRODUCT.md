@@ -14,7 +14,7 @@ People who want to talk to a configured Insight Flow Agent in a familiar, distra
 
 ## Product Purpose
 
-Turn a backend-stored Insight Flow connection into a continuous streaming conversation. Success means a signed-in user configures their Agent once in Settings, returns to a clean chat surface, sees finalized SSE chunks arrive, and continues the same Agent session without credentials appearing in the chat UI.
+Turn a backend-stored Insight Flow connection into a streaming conversation that stays continuous while the page is open. Success means a signed-in user configures their Agent once in Settings, returns to a clean chat surface, sees finalized SSE chunks arrive, and continues the same Agent session without credentials appearing in the chat UI.
 
 ## Positioning
 
@@ -31,7 +31,7 @@ Avoid neon-on-black AI aesthetics, oversized marketing copy, ornamental dashboar
 ## Design Principles
 
 - Keep the main surface about conversation; configuration belongs on a separate Settings route.
-- Store API keys in owner-only backend rows, mask them by default, and reveal the full value only after an explicit authenticated action.
+- Store API keys in owner-only backend rows, mask them by default to prevent accidental display, and reveal the full value only after an explicit authenticated action.
 - Prefer the documented `model: goclaw:<agent-key>` contract while keeping the legacy `agent` alias testable.
 - Show streaming, cancellation, session reset, and errors as clear states rather than animations.
 - Use a familiar sidebar, centered transcript, and bottom composer; collapse navigation on small screens.
