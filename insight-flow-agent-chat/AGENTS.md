@@ -3,8 +3,8 @@
 ## Credential boundary
 
 - Configuration belongs on `/settings`, never in the chat composer or sidebar.
-- Encrypt the API key with AES-256-GCM inside `insight-flow-config` before database storage. The encryption key is the server-only `INSIGHT_FLOW_CONFIG_ENCRYPTION_KEY` secret.
-- Never return plaintext API keys to the browser. The settings API may return only configured state and the last four characters.
+- Store the API key as plaintext only in the owner-scoped backend configuration row.
+- Default settings reads must return only configured state and a masked placeholder. Return the full key only for the explicit authenticated `reveal` action initiated from the settings eye control.
 - Never place the API key in localStorage, sessionStorage, cookies, analytics, logs, URLs, public environment variables, or generated source packages.
 - Keep owner-only RLS on `insight_flow_agent_configs`. The optional `INSIGHT_FLOW_ALLOWED_HOSTS` secret narrows outbound destinations.
 

@@ -171,6 +171,7 @@ button, a { touch-action: manipulation; }
 .secure-input input { padding-right: 46px !important; }
 .secure-input button { position: absolute; top: 50%; right: 7px; display: inline-flex; width: 34px; height: 34px; transform: translateY(-50%); align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .secure-input button:hover { background: var(--soft); }
+.secure-input button:disabled { cursor: wait; opacity: 0.55; }
 .secure-input button svg { width: 16px; height: 16px; }
 .segmented-control { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 10px; background: var(--sidebar); }
 .segmented-control button { height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }

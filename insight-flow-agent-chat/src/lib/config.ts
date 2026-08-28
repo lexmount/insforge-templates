@@ -36,3 +36,14 @@ export async function saveAgentConfig(input: AgentConfigInput): Promise<AgentCon
   if (error) throw error;
   return data ?? { configured: false };
 }
+
+export async function revealAgentApiKey(): Promise<string> {
+  if (!insforge) throw new Error('InsForge 尚未连接。');
+  const { data, error } = await insforge.functions.invoke<{ apiKey: string }>('insight-flow-config', {
+    method: 'POST',
+    body: { action: 'reveal' },
+  });
+  if (error) throw error;
+  if (!data?.apiKey) throw new Error('API Key 尚未配置。');
+  return data.apiKey;
+}

@@ -43,7 +43,7 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: (user: AuthUser) => voi
       <section className="auth-panel" aria-labelledby="auth-title">
         <div className="brand-mark large"><Bot aria-hidden="true" /></div>
         <h1 id="auth-title">登录后开始对话</h1>
-        <p>你的 Agent 配置会加密保存在 InsForge 后端，并与当前账号隔离。</p>
+        <p>你的 Agent 配置保存在 InsForge 后端，并与当前账号隔离。</p>
         <form onSubmit={submit} className="auth-form">
           <label>
             <span>邮箱</span>

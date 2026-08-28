@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, Eye, EyeOff, KeyRound, LockKeyhole, Save, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { loadAgentConfig, saveAgentConfig } from '../lib/config';
+import { loadAgentConfig, revealAgentApiKey, saveAgentConfig } from '../lib/config';
 import type { AgentConfig } from '../lib/config';
 
 type SettingsPageProps = {
@@ -16,6 +16,7 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
   const [target, setTarget] = useState('');
   const [disableTools, setDisableTools] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -52,12 +53,34 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
       });
       setConfig(next);
       setApiKey('');
+      setShowKey(false);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2400);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '保存失败。');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function toggleKeyVisibility() {
+    if (showKey) {
+      setShowKey(false);
+      return;
+    }
+    if (apiKey || !config?.configured) {
+      setShowKey(true);
+      return;
+    }
+    setRevealing(true);
+    setError('');
+    try {
+      setApiKey(await revealAgentApiKey());
+      setShowKey(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '无法读取 API Key。');
+    } finally {
+      setRevealing(false);
     }
   }
 
@@ -72,14 +95,14 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
       <div className="settings-content">
         <div className="settings-heading">
           <h1>连接 Insight Flow</h1>
-          <p>这里的配置只用于你的账号。聊天页不会显示或接触完整 API Key。</p>
+          <p>这里的配置只用于你的账号。聊天页不会显示完整 API Key。</p>
         </div>
         {loading ? <div className="settings-skeleton" aria-label="正在加载设置" /> : (
           <form className="settings-form" onSubmit={submit}>
             <section className="settings-section">
               <div>
                 <h2>API 连接</h2>
-                <p>API Key 在 Edge Function 中使用 AES-256-GCM 加密后保存。</p>
+                <p>连接信息保存在你的 InsForge 后端，并通过账号权限隔离。</p>
               </div>
               <div className="settings-fields">
                 <label>
@@ -99,18 +122,23 @@ export function SettingsPage({ navigate }: SettingsPageProps) {
                     <KeyRound aria-hidden="true" />
                     <input
                       autoComplete="new-password"
-                      placeholder={config?.configured ? `${config.apiKeyHint}（留空保持不变）` : '输入 API Key'}
+                      placeholder={config?.configured ? config.apiKeyHint : '输入 API Key'}
                       required={!config?.configured}
                       spellCheck={false}
                       type={showKey ? 'text' : 'password'}
                       value={apiKey}
                       onChange={(event) => setApiKey(event.target.value)}
                     />
-                    <button aria-label={showKey ? '隐藏 API Key' : '显示 API Key'} type="button" onClick={() => setShowKey((value) => !value)}>
+                    <button
+                      aria-label={showKey ? '隐藏 API Key' : '显示 API Key'}
+                      disabled={revealing}
+                      type="button"
+                      onClick={toggleKeyVisibility}
+                    >
                       {showKey ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
                     </button>
                   </span>
-                  <small><LockKeyhole aria-hidden="true" /> 保存后，浏览器只能看到密钥尾号。</small>
+                  <small><LockKeyhole aria-hidden="true" /> 默认隐藏；点击眼睛后可查看完整密钥。</small>
                 </label>
               </div>
             </section>

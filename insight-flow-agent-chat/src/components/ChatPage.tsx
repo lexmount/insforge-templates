@@ -180,7 +180,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
             <div className="chat-empty">
               <span className="empty-mark"><Bot aria-hidden="true" /></span>
               <h1>先连接你的 Agent</h1>
-              <p>在独立设置页保存 Insight Flow 连接。API Key 会在后端加密，聊天页面不会读取它。</p>
+              <p>在独立设置页保存 Insight Flow 连接。API Key 默认隐藏，聊天页面不会显示它。</p>
               <button className="primary-action" type="button" onClick={() => navigate('/settings')}><Settings aria-hidden="true" />打开设置</button>
             </div>
           ) : messages.length === 0 ? (

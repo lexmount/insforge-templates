@@ -15,42 +15,29 @@ export type StoredConfig = {
   target_mode: 'model' | 'agent';
   target: string;
   disable_tools: boolean;
-  encrypted_api_key: string;
-  api_key_iv: string;
+  api_key: string;
 };
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
   });
-}
-
-function base64ToBytes(value: string) {
-  const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-export async function decryptApiKey(config: StoredConfig) {
-  const encodedKey = Deno.env.get('INSIGHT_FLOW_CONFIG_ENCRYPTION_KEY')?.trim();
-  if (!encodedKey) throw new Error('missing_encryption_key');
-  const keyBytes = base64ToBytes(encodedKey);
-  if (keyBytes.length !== 32) throw new Error('invalid_encryption_key');
-  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: base64ToBytes(config.api_key_iv) },
-    key,
-    base64ToBytes(config.encrypted_api_key),
-  );
-  return new TextDecoder().decode(decrypted);
 }
 
 async function limitedError(response: Response) {
   const text = (await response.text()).slice(0, 2000);
   try {
-    const payload = JSON.parse(text) as { error?: { message?: string } | string; message?: string };
+    const payload = JSON.parse(text) as {
+      error?: { message?: string } | string;
+      message?: string;
+    };
     if (typeof payload.error === 'string') return payload.error;
-    return payload.error?.message || payload.message || `Insight Flow 返回 ${response.status}`;
+    return payload.error?.message || payload.message ||
+      `Insight Flow 返回 ${response.status}`;
   } catch {
     return text.trim().slice(0, 500) || `Insight Flow 返回 ${response.status}`;
   }
@@ -58,39 +45,55 @@ async function limitedError(response: Response) {
 
 function safeBaseUrl(raw: string) {
   const url = new URL(raw);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+  if (
+    url.protocol !== 'https:' || url.username || url.password || url.search ||
+    url.hash
+  ) {
     throw new Error('invalid_base_url');
   }
   const host = url.hostname.toLowerCase();
   const ipv4 = host.split('.').map(Number);
-  const privateIPv4 = ipv4.length === 4 && ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) && (
-    ipv4[0] === 0 || ipv4[0] === 10 || ipv4[0] === 127 ||
-    (ipv4[0] === 169 && ipv4[1] === 254) ||
-    (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31) ||
-    (ipv4[0] === 192 && ipv4[1] === 168)
-  );
+  const privateIPv4 = ipv4.length === 4 &&
+    ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) &&
+    (
+      ipv4[0] === 0 || ipv4[0] === 10 || ipv4[0] === 127 ||
+      (ipv4[0] === 169 && ipv4[1] === 254) ||
+      (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31) ||
+      (ipv4[0] === 192 && ipv4[1] === 168)
+    );
   const normalizedIPv6 = host.replace(/^\[|\]$/g, '').toLowerCase();
-  const privateIPv6 = normalizedIPv6 === '::1' || normalizedIPv6.startsWith('fc') ||
+  const privateIPv6 = normalizedIPv6 === '::1' ||
+    normalizedIPv6.startsWith('fc') ||
     normalizedIPv6.startsWith('fd') || /^fe[89ab]/.test(normalizedIPv6);
-  if (host === 'localhost' || host.endsWith('.localhost') || privateIPv4 || privateIPv6) {
+  if (
+    host === 'localhost' || host.endsWith('.localhost') || privateIPv4 ||
+    privateIPv6
+  ) {
     throw new Error('private_base_url');
   }
   const allowedHosts = (Deno.env.get('INSIGHT_FLOW_ALLOWED_HOSTS') ?? '')
     .split(',')
     .map((item: string) => item.trim().toLowerCase())
     .filter(Boolean);
-  if (allowedHosts.length > 0 && !allowedHosts.includes(host)) throw new Error('host_not_allowed');
+  if (allowedHosts.length > 0 && !allowedHosts.includes(host)) {
+    throw new Error('host_not_allowed');
+  }
   url.pathname = url.pathname.replace(/\/$/, '');
   return url.toString().replace(/\/$/, '');
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return json(401, { error: 'unauthorized' });
-  const client = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: token });
+  const client = createClient({
+    baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
+    accessToken: token,
+  });
   const { data: identity } = await client.auth.getCurrentUser();
   if (!identity?.user?.id) return json(401, { error: 'unauthorized' });
 
@@ -101,16 +104,22 @@ export default async function handler(req: Request): Promise<Response> {
     return json(400, { error: 'invalid_json' });
   }
   const message = input.message?.trim() ?? '';
-  if (!message || message.length > 32000) return json(422, { error: 'invalid_message' });
+  if (!message || message.length > 32000) {
+    return json(422, { error: 'invalid_message' });
+  }
 
   const { data, error } = await client.database
     .from('insight_flow_agent_configs')
-    .select('base_url,target_mode,target,disable_tools,encrypted_api_key,api_key_iv')
+    .select('base_url,target_mode,target,disable_tools,api_key')
     .maybeSingle();
-  if (error) return json(500, { error: 'config_read_failed', detail: error.message });
+  if (error) {
+    return json(500, { error: 'config_read_failed', detail: error.message });
+  }
   if (!data) return json(409, { error: 'agent_not_configured' });
   const config = data as StoredConfig;
-  if (!config.target.trim() || config.target.length > 200) return json(422, { error: 'invalid_stored_target' });
+  if (!config.target.trim() || config.target.length > 200) {
+    return json(422, { error: 'invalid_stored_target' });
+  }
 
   let baseUrl: string;
   try {
@@ -119,19 +128,17 @@ export default async function handler(req: Request): Promise<Response> {
     return json(422, { error: 'invalid_stored_base_url' });
   }
 
-  let apiKey: string;
-  try {
-    apiKey = await decryptApiKey(config);
-  } catch {
-    return json(503, { error: 'config_decryption_failed' });
+  const apiKey = config.api_key.trim();
+  if (!apiKey || apiKey.length > 512 || /\s/.test(apiKey)) {
+    return json(422, { error: 'invalid_stored_api_key' });
   }
 
   const requestBody: Record<string, unknown> = {
     stream: true,
     messages: [{ role: 'user', content: message }],
-    ...(config.target_mode === 'agent'
-      ? { agent: config.target }
-      : { model: config.target.includes(':') ? config.target : `goclaw:${config.target}` }),
+    ...(config.target_mode === 'agent' ? { agent: config.target } : {
+      model: config.target.includes(':') ? config.target : `goclaw:${config.target}`,
+    }),
     ...(input.sessionKey?.trim() ? { session_key: input.sessionKey.trim() } : {}),
     ...(config.disable_tools ? { tool_choice: 'none' } : {}),
   };
@@ -150,7 +157,9 @@ export default async function handler(req: Request): Promise<Response> {
       signal: req.signal,
     });
   } catch (reason) {
-    if (req.signal.aborted) return json(499, { error: 'client_closed_request' });
+    if (req.signal.aborted) {
+      return json(499, { error: 'client_closed_request' });
+    }
     return json(502, {
       error: 'insight_flow_unreachable',
       detail: reason instanceof Error ? reason.message : '无法连接 Insight Flow。',
@@ -158,7 +167,10 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (!upstream.ok) {
-    return json(upstream.status, { error: 'insight_flow_error', detail: await limitedError(upstream) });
+    return json(upstream.status, {
+      error: 'insight_flow_error',
+      detail: await limitedError(upstream),
+    });
   }
   if (!upstream.body) return json(502, { error: 'empty_stream' });
   const contentType = upstream.headers.get('Content-Type') ?? '';

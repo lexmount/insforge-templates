@@ -1,12 +1,12 @@
 # Insight Flow Agent Chat
 
-一个 ChatGPT 风格的 Insight Flow Agent 流式对话模板。主界面只负责对话；登录用户在独立 `/settings` 页面配置一次 Base URL、API Key 和 model/agent 参数，之后由 InsForge Edge Function 从后端读取加密配置并代理 `/v1/chat/completions` SSE。
+一个 ChatGPT 风格的 Insight Flow Agent 流式对话模板。主界面只负责对话；登录用户在独立 `/settings` 页面配置一次 Base URL、API Key 和 model/agent 参数，之后由 InsForge Edge Function 从后端读取配置并代理 `/v1/chat/completions` SSE。
 
 ## 功能
 
 - ChatGPT 风格侧栏、居中消息流和底部 composer，支持桌面与移动端。
 - InsForge 邮箱 OTP 登录，每个用户拥有独立 Agent 配置。
-- API Key 在 Edge Function 中使用 AES-256-GCM 加密后写入数据库；前端只收到“已配置”和密钥尾号。
+- API Key 明文保存在用户自己的后端配置行中，由登录认证和 RLS 隔离；设置页默认脱敏，点击眼睛后可查看完整值。
 - 推荐 `model: "goclaw:<agent-key>"`，同时兼容 PR #666 的 `agent` 参数。
 - 解析 OpenAI-compatible SSE delta 与 `[DONE]`，支持停止生成。
 - 回传 `X-GoClaw-Session-Key`，在当前页面中延续 Agent session。
@@ -31,15 +31,6 @@ npx -y @insforge/cli functions deploy insight-flow-config --file ./functions/ins
 npx -y @insforge/cli functions deploy insight-flow-chat --file ./functions/insight-flow-chat.ts
 ```
 
-生成一个 32 字节加密密钥并作为 Function secret 保存：
-
-```bash
-openssl rand -base64 32
-npx -y @insforge/cli secrets add INSIGHT_FLOW_CONFIG_ENCRYPTION_KEY '<生成的值>'
-```
-
-这个密钥不能放在任何 `VITE_*` 变量中。轮换它之前需要重新加密已有配置，否则旧配置将无法解密。
-
 生产环境建议再限制允许连接的 Insight Flow Host：
 
 ```bash
@@ -47,6 +38,8 @@ npx -y @insforge/cli secrets add INSIGHT_FLOW_ALLOWED_HOSTS 'insight-flow.exampl
 ```
 
 Function 拒绝 HTTP、本地主机和私有 IP 字面量。Host allowlist 是生产环境更可靠的边界，可降低域名解析到私有网络带来的 SSRF 风险。
+
+API Key 不会进入聊天页、URL、浏览器存储或公共环境变量。默认读取设置时接口只返回脱敏占位符；用户在设置页点击眼睛后，经过身份认证的 Function 才返回该用户自己的完整 Key。数据库管理员仍可读取明文值，因此该模板适合以部署简洁为优先的场景。
 
 ## 前端环境变量
 
