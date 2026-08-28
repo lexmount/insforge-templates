@@ -123,22 +123,23 @@
   {
     "slug": "insight-flow-agent-chat",
     "name": "Insight Flow Agent Chat",
-    "description": "连接任意 Insight Flow Agent 的安全流式对话工作台：用户提供自己的 API Key，通过 InsForge Edge Function 代理 OpenAI-compatible SSE，并可选择推荐的 model 参数或兼容 agent 参数。",
+    "description": "ChatGPT 风格的 Insight Flow Agent 对话应用：登录用户在独立设置页保存加密的 API Key 与 model/agent 参数，聊天页通过 InsForge Edge Function 流式呈现 OpenAI-compatible SSE。",
     "category": "AI",
     "framework": "react",
     "features": [
-      "Insight Flow Agent Chat",
+      "ChatGPT-style UI",
+      "Encrypted Agent Settings",
       "Streaming Edge Function",
-      "Model and Agent Parameters",
       "Continuous Sessions",
-      "Memory-only API Key"
+      "Auth and RLS"
     ],
     "tags": [
       "insight-flow",
       "agent",
       "chat",
       "streaming",
-      "sse"
+      "sse",
+      "auth"
     ],
     "requiredCapabilities": [
       "ai.streaming"

@@ -1,5 +1,7 @@
 /// <reference lib="deno.ns" />
 
+import { createClient } from 'npm:@insforge/sdk@1.5.2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -7,14 +9,14 @@ const corsHeaders = {
   'Access-Control-Expose-Headers': 'X-InsightFlow-Session-Key',
 };
 
-type ProxyRequest = {
-  insightFlowBaseUrl?: string;
-  insightFlowApiKey?: string;
-  targetMode?: 'model' | 'agent';
-  target?: string;
-  message?: string;
-  sessionKey?: string;
-  disableTools?: boolean;
+type ProxyRequest = { message?: string; sessionKey?: string };
+export type StoredConfig = {
+  base_url: string;
+  target_mode: 'model' | 'agent';
+  target: string;
+  disable_tools: boolean;
+  encrypted_api_key: string;
+  api_key_iv: string;
 };
 
 function json(status: number, body: Record<string, unknown>) {
@@ -24,79 +26,73 @@ function json(status: number, body: Record<string, unknown>) {
   });
 }
 
-function isPrivateIPv4(host: string) {
-  const parts = host.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
-    return false;
-  }
-  return (
-    parts[0] === 10 ||
-    parts[0] === 127 ||
-    parts[0] === 0 ||
-    (parts[0] === 169 && parts[1] === 254) ||
-    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-    (parts[0] === 192 && parts[1] === 168)
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+export async function decryptApiKey(config: StoredConfig) {
+  const encodedKey = Deno.env.get('INSIGHT_FLOW_CONFIG_ENCRYPTION_KEY')?.trim();
+  if (!encodedKey) throw new Error('missing_encryption_key');
+  const keyBytes = base64ToBytes(encodedKey);
+  if (keyBytes.length !== 32) throw new Error('invalid_encryption_key');
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(config.api_key_iv) },
+    key,
+    base64ToBytes(config.encrypted_api_key),
   );
+  return new TextDecoder().decode(decrypted);
 }
 
-function isPrivateIPv6(host: string) {
-  const normalized = host.replace(/^\[|\]$/g, '').toLowerCase();
-  return normalized === '::1' || normalized.startsWith('fc') || normalized.startsWith('fd') || normalized.startsWith('fe8') || normalized.startsWith('fe9') || normalized.startsWith('fea') || normalized.startsWith('feb');
-}
-
-function normalizeBaseUrl(raw: string) {
-  let url: URL;
+async function limitedError(response: Response) {
+  const text = (await response.text()).slice(0, 2000);
   try {
-    url = new URL(raw);
+    const payload = JSON.parse(text) as { error?: { message?: string } | string; message?: string };
+    if (typeof payload.error === 'string') return payload.error;
+    return payload.error?.message || payload.message || `Insight Flow 返回 ${response.status}`;
   } catch {
-    throw new Error('Insight Flow Base URL 无效。');
+    return text.trim().slice(0, 500) || `Insight Flow 返回 ${response.status}`;
+  }
+}
+
+function safeBaseUrl(raw: string) {
+  const url = new URL(raw);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+    throw new Error('invalid_base_url');
   }
   const host = url.hostname.toLowerCase();
-  if (url.protocol !== 'https:') throw new Error('Insight Flow Base URL 必须使用 HTTPS。');
-  if (url.username || url.password || url.search || url.hash) throw new Error('Base URL 不能包含凭据、查询参数或片段。');
-  if (host === 'localhost' || host.endsWith('.localhost') || isPrivateIPv4(host) || isPrivateIPv6(host)) {
-    throw new Error('不能访问本地或私有网络地址。');
+  const ipv4 = host.split('.').map(Number);
+  const privateIPv4 = ipv4.length === 4 && ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) && (
+    ipv4[0] === 0 || ipv4[0] === 10 || ipv4[0] === 127 ||
+    (ipv4[0] === 169 && ipv4[1] === 254) ||
+    (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31) ||
+    (ipv4[0] === 192 && ipv4[1] === 168)
+  );
+  const normalizedIPv6 = host.replace(/^\[|\]$/g, '').toLowerCase();
+  const privateIPv6 = normalizedIPv6 === '::1' || normalizedIPv6.startsWith('fc') ||
+    normalizedIPv6.startsWith('fd') || /^fe[89ab]/.test(normalizedIPv6);
+  if (host === 'localhost' || host.endsWith('.localhost') || privateIPv4 || privateIPv6) {
+    throw new Error('private_base_url');
   }
-
   const allowedHosts = (Deno.env.get('INSIGHT_FLOW_ALLOWED_HOSTS') ?? '')
     .split(',')
     .map((item: string) => item.trim().toLowerCase())
     .filter(Boolean);
-  if (allowedHosts.length > 0 && !allowedHosts.includes(host)) {
-    throw new Error('该 Insight Flow Host 不在服务端允许列表中。');
-  }
-
+  if (allowedHosts.length > 0 && !allowedHosts.includes(host)) throw new Error('host_not_allowed');
   url.pathname = url.pathname.replace(/\/$/, '');
   return url.toString().replace(/\/$/, '');
-}
-
-async function limitedError(response: Response) {
-  if (!response.body) return `Insight Flow 返回 ${response.status}`;
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let output = '';
-  try {
-    while (output.length < 2000) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      output += decoder.decode(value, { stream: true });
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  try {
-    const payload = JSON.parse(output) as { error?: { message?: string } | string; message?: string };
-    if (typeof payload.error === 'string') return payload.error;
-    return payload.error?.message || payload.message || `Insight Flow 返回 ${response.status}`;
-  } catch {
-    return output.trim().slice(0, 500) || `Insight Flow 返回 ${response.status}`;
-  }
 }
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
-  if (!req.headers.get('Authorization')?.startsWith('Bearer ')) return json(401, { error: 'unauthorized' });
+
+  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!token) return json(401, { error: 'unauthorized' });
+  const client = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: token });
+  const { data: identity } = await client.auth.getCurrentUser();
+  if (!identity?.user?.id) return json(401, { error: 'unauthorized' });
 
   let input: ProxyRequest;
   try {
@@ -104,30 +100,40 @@ export default async function handler(req: Request): Promise<Response> {
   } catch {
     return json(400, { error: 'invalid_json' });
   }
-
-  const apiKey = input.insightFlowApiKey?.trim() ?? '';
-  const target = input.target?.trim() ?? '';
   const message = input.message?.trim() ?? '';
-  if (!apiKey || apiKey.length > 512 || /\s/.test(apiKey)) return json(422, { error: 'invalid_api_key', detail: '请输入有效的 Insight Flow API Key。' });
-  if (!target || target.length > 200) return json(422, { error: 'invalid_target', detail: '请输入 Agent Key 或 model。' });
-  if (!message || message.length > 32000) return json(422, { error: 'invalid_message', detail: '消息不能为空且不能超过 32,000 字符。' });
+  if (!message || message.length > 32000) return json(422, { error: 'invalid_message' });
+
+  const { data, error } = await client.database
+    .from('insight_flow_agent_configs')
+    .select('base_url,target_mode,target,disable_tools,encrypted_api_key,api_key_iv')
+    .maybeSingle();
+  if (error) return json(500, { error: 'config_read_failed', detail: error.message });
+  if (!data) return json(409, { error: 'agent_not_configured' });
+  const config = data as StoredConfig;
+  if (!config.target.trim() || config.target.length > 200) return json(422, { error: 'invalid_stored_target' });
 
   let baseUrl: string;
   try {
-    baseUrl = normalizeBaseUrl(input.insightFlowBaseUrl?.trim() ?? '');
-  } catch (error) {
-    return json(422, { error: 'invalid_base_url', detail: error instanceof Error ? error.message : 'Base URL 无效。' });
+    baseUrl = safeBaseUrl(config.base_url);
+  } catch {
+    return json(422, { error: 'invalid_stored_base_url' });
   }
 
-  const targetMode = input.targetMode === 'agent' ? 'agent' : 'model';
+  let apiKey: string;
+  try {
+    apiKey = await decryptApiKey(config);
+  } catch {
+    return json(503, { error: 'config_decryption_failed' });
+  }
+
   const requestBody: Record<string, unknown> = {
     stream: true,
     messages: [{ role: 'user', content: message }],
-    ...(targetMode === 'agent'
-      ? { agent: target }
-      : { model: target.includes(':') ? target : `goclaw:${target}` }),
+    ...(config.target_mode === 'agent'
+      ? { agent: config.target }
+      : { model: config.target.includes(':') ? config.target : `goclaw:${config.target}` }),
     ...(input.sessionKey?.trim() ? { session_key: input.sessionKey.trim() } : {}),
-    ...(input.disableTools ? { tool_choice: 'none' } : {}),
+    ...(config.disable_tools ? { tool_choice: 'none' } : {}),
   };
 
   let upstream: Response;
@@ -143,17 +149,22 @@ export default async function handler(req: Request): Promise<Response> {
       redirect: 'error',
       signal: req.signal,
     });
-  } catch (error) {
+  } catch (reason) {
     if (req.signal.aborted) return json(499, { error: 'client_closed_request' });
-    return json(502, { error: 'insight_flow_unreachable', detail: error instanceof Error ? error.message : '无法连接 Insight Flow。' });
+    return json(502, {
+      error: 'insight_flow_unreachable',
+      detail: reason instanceof Error ? reason.message : '无法连接 Insight Flow。',
+    });
   }
 
-  if (!upstream.ok) return json(upstream.status, { error: 'insight_flow_error', detail: await limitedError(upstream) });
-  if (!upstream.body) return json(502, { error: 'empty_stream', detail: 'Insight Flow 没有返回响应流。' });
+  if (!upstream.ok) {
+    return json(upstream.status, { error: 'insight_flow_error', detail: await limitedError(upstream) });
+  }
+  if (!upstream.body) return json(502, { error: 'empty_stream' });
   const contentType = upstream.headers.get('Content-Type') ?? '';
   if (!contentType.toLowerCase().includes('text/event-stream')) {
     await upstream.body.cancel().catch(() => undefined);
-    return json(502, { error: 'unexpected_response', detail: 'Insight Flow 没有返回 SSE。' });
+    return json(502, { error: 'unexpected_response' });
   }
 
   const sessionKey = upstream.headers.get('X-GoClaw-Session-Key');

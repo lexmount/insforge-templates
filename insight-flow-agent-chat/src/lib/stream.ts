@@ -1,3 +1,5 @@
+import { insforge, insforgeBaseUrl } from './insforge';
+
 export type StreamDelta = {
   choices?: Array<{
     delta?: {
@@ -68,35 +70,20 @@ export async function consumeInsightFlowSSE(
 }
 
 export type AgentChatRequest = {
-  insightFlowBaseUrl: string;
-  insightFlowApiKey: string;
-  targetMode: 'model' | 'agent';
-  target: string;
   message: string;
   sessionKey?: string;
-  disableTools?: boolean;
 };
-
-function functionUrl() {
-  const baseUrl = import.meta.env.VITE_INSFORGE_URL?.trim().replace(/\/$/, '');
-  if (!baseUrl) throw new Error('缺少 VITE_INSFORGE_URL。');
-  return `${baseUrl}/functions/insight-flow-chat`;
-}
 
 export async function streamAgentReply(
   request: AgentChatRequest,
   signal: AbortSignal,
   onDelta: (text: string) => void,
 ): Promise<string | null> {
-  const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY?.trim();
-  if (!anonKey) throw new Error('缺少 VITE_INSFORGE_ANON_KEY。');
+  if (!insforge || !insforgeBaseUrl) throw new Error('InsForge 尚未连接。');
 
-  const response = await fetch(functionUrl(), {
+  const response = await insforge.getHttpClient().rawFetch(`${insforgeBaseUrl}/functions/insight-flow-chat`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${anonKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
     signal,
   });
