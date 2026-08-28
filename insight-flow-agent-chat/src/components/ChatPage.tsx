@@ -44,6 +44,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -68,6 +69,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
     setMessage('');
     setSessionKey(null);
     setError('');
+    setWarning('');
     setIsStreaming(false);
     setSidebarOpen(false);
   }
@@ -83,6 +85,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
     ]);
     setMessage('');
     setError('');
+    setWarning('');
     setIsStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -94,12 +97,12 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
         (delta) => setMessages((current) => current.map((item) => (
           item.id === assistantId ? { ...item, content: item.content + delta } : item
         ))),
-        (nextSessionKey) => {
-          if (nextSessionKey) setSessionKey(nextSessionKey);
+        (headerSessionKey) => {
+          if (headerSessionKey) setSessionKey(headerSessionKey);
         },
       );
       if (nextSessionKey) setSessionKey(nextSessionKey);
-      else setError('未收到会话标识，下一条消息可能会开启新会话。');
+      else setWarning('未收到会话标识，下一条消息可能会开启新会话。');
     } catch (reason) {
       if (controller.signal.aborted) {
         setMessages((current) => current.map((item) => (
@@ -222,6 +225,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
         </div>
 
         <div className="composer-dock">
+          {warning ? <div className="chat-warning" role="status"><span>{warning}</span><button aria-label="关闭提示" type="button" onClick={() => setWarning('')}><X aria-hidden="true" /></button></div> : null}
           {error ? <div className="chat-error" role="alert"><span>{error}</span><button aria-label="关闭错误" type="button" onClick={() => setError('')}><X aria-hidden="true" /></button></div> : null}
           <form className="chat-composer" onSubmit={submit}>
             <textarea

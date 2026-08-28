@@ -52,23 +52,25 @@ function embeddedIPv4(value: string) {
 
 function isNonPublicIPv4(parts: number[] | null) {
   if (!parts) return false;
-  const [a, b] = parts;
+  const [a, b, c] = parts;
   return a === 0 || a === 10 || a === 127 ||
     (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && (b === 0 || b === 168)) ||
+    (a === 192 && ((b === 0 && (c === 0 || c === 2)) || b === 168)) ||
     (a === 198 && (b === 18 || b === 19)) ||
     a >= 224;
 }
 
 export function isBlockedHostname(hostname: string) {
-  const host = hostname.toLowerCase();
-  const bare = host.replace(/^\[|\]$/g, '');
-  const privateIPv6 = bare === '::' || bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd') ||
-    /^fe[89a-f]/.test(bare);
+  const host = hostname.toLowerCase().replace(/\.$/, '');
+  const isIPv6Literal = host.startsWith('[') && host.endsWith(']');
+  const bare = isIPv6Literal ? host.slice(1, -1) : host;
+  const privateIPv6 = isIPv6Literal && (
+    bare === '::' || bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd') || /^fe[89ab]/.test(bare)
+  );
   return host === 'localhost' || host.endsWith('.localhost') || privateIPv6 ||
-    isNonPublicIPv4(ipv4Parts(host)) || isNonPublicIPv4(embeddedIPv4(bare));
+    isNonPublicIPv4(ipv4Parts(host)) || (isIPv6Literal && isNonPublicIPv4(embeddedIPv4(bare)));
 }
 
 function normalizeBaseUrl(raw: string) {
@@ -76,7 +78,7 @@ function normalizeBaseUrl(raw: string) {
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
     throw new Error('invalid_base_url');
   }
-  const host = url.hostname.toLowerCase();
+  const host = url.hostname.toLowerCase().replace(/\.$/, '');
   if (isBlockedHostname(host)) throw new Error('private_base_url');
   const allowedHosts = (Deno.env.get('INSIGHT_FLOW_ALLOWED_HOSTS') ?? '')
     .split(',')
@@ -167,8 +169,9 @@ export default async function handler(req: Request): Promise<Response> {
   let baseUrl: string;
   try {
     baseUrl = normalizeBaseUrl(input.insightFlowBaseUrl?.trim() ?? '');
-  } catch {
-    return json(422, { error: 'invalid_base_url' });
+  } catch (reason) {
+    const error = reason instanceof Error && ['private_base_url', 'host_not_allowed'].includes(reason.message) ? reason.message : 'invalid_base_url';
+    return json(422, { error });
   }
 
   const targetMode: 'model' | 'agent' = input.targetMode === 'agent' ? 'agent' : 'model';

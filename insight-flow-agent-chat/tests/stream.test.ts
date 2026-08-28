@@ -92,4 +92,18 @@ describe('consumeInsightFlowSSE', () => {
     await expect(reply).rejects.toThrow();
     expect(sessions).toEqual(['sess-42']);
   });
+
+  it('labels an upstream authentication failure separately from InsForge auth', async () => {
+    mocks.rawFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: 'insight_flow_error',
+      detail: 'invalid upstream key',
+      upstreamStatus: 401,
+    }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    await expect(
+      streamAgentReply({ message: 'hello' }, new AbortController().signal, () => undefined),
+    ).rejects.toThrow('invalid upstream key（Insight Flow HTTP 401）');
+  });
 });

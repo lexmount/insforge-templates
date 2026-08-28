@@ -30,6 +30,8 @@ Deno.test('chat endpoint requires a signed-in user token', async () => {
 Deno.test('both functions reject local, mapped, CGNAT, and unspecified IP hosts', () => {
   const blocked = [
     'localhost',
+    'localhost.',
+    'foo.localhost.',
     '127.0.0.1',
     '100.64.0.1',
     '[::]',
@@ -42,8 +44,12 @@ Deno.test('both functions reject local, mapped, CGNAT, and unspecified IP hosts'
     assert(configBlocksHostname(host), `config function allowed ${host}`);
     assert(chatBlocksHostname(host), `chat function allowed ${host}`);
   }
-  assert(!configBlocksHostname('flow.example.com'), 'config function blocked a public DNS host');
+  for (const host of ['flow.example.com', 'feed.example.com', 'fcm.example.com', 'fedex.example.com', 'feature.example.com']) {
+    assert(!configBlocksHostname(host), `config function blocked public DNS host ${host}`);
+    assert(!chatBlocksHostname(host), `chat function blocked public DNS host ${host}`);
+  }
   assert(!chatBlocksHostname('8.8.8.8'), 'chat function blocked a public IPv4 host');
+  assert(!chatBlocksHostname('192.1.2.3'), 'chat function blocked unrelated 192.0.0.0/16 space');
 });
 
 Deno.test('authenticated config masks by default, reveals on request, and chat streams with the stored key', async () => {
@@ -208,6 +214,7 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
     );
 
     const replacementKey = 'replacement-api-key';
+    Deno.env.set('INSIGHT_FLOW_ALLOWED_HOSTS', 'feed.example.com');
     const saveResponse = await configHandler(
       new Request('https://app.example.com/functions/insight-flow-config', {
         method: 'PUT',
@@ -216,7 +223,7 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          insightFlowBaseUrl: 'https://flow.example.com',
+          insightFlowBaseUrl: 'https://feed.example.com./',
           insightFlowApiKey: replacementKey,
           targetMode: 'model',
           target: 'research-agent',
@@ -232,6 +239,26 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
       databaseCapture.body?.p_api_key === replacementKey,
       'config save did not write the plaintext API key',
     );
+    assert(
+      databaseCapture.body?.p_base_url === 'https://feed.example.com.',
+      'trailing-dot FQDN did not pass the normalized allowlist check',
+    );
+    Deno.env.delete('INSIGHT_FLOW_ALLOWED_HOSTS');
+
+    const privateHostResponse = await configHandler(
+      new Request('https://app.example.com/functions/insight-flow-config', {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer user-jwt', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insightFlowBaseUrl: 'https://localhost.',
+          targetMode: 'model',
+          target: 'research-agent',
+          disableTools: false,
+        }),
+      }),
+    );
+    assert(privateHostResponse.status === 422, 'trailing-dot localhost passed config validation');
+    assert((await privateHostResponse.json()).error === 'private_base_url', 'private host rejection reason was collapsed');
 
     upstreamStatus = 401;
     const upstreamErrorResponse = await chatHandler(
@@ -247,5 +274,6 @@ Deno.test('authenticated config masks by default, reveals on request, and chat s
   } finally {
     globalThis.fetch = originalFetch;
     Deno.env.delete('INSFORGE_BASE_URL');
+    Deno.env.delete('INSIGHT_FLOW_ALLOWED_HOSTS');
   }
 });
