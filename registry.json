@@ -142,7 +142,7 @@
     "description": "ChatGPT 风格的 Insight Flow Agent 对话应用：登录用户在独立设置页保存 API Key 与 model/agent 参数，聊天页通过 InsForge Edge Function 流式呈现 OpenAI-compatible SSE。",
     "category": "AI",
     "framework": "react",
-    "buildProfile": "vite-pnpm-v1",
+    "buildProfile": "vite-npm-v1",
     "publishingCompatibility": "native",
     "features": [
       "ChatGPT-style UI",
