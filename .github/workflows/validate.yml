@@ -31,13 +31,6 @@ jobs:
         working-directory: scripts
         run: npm test
 
-  # We deliberately do NOT run `npm install` on each template in CI:
-  # contributors install locally before opening a PR, package-lock.json
-  # makes the install reproducible, and the slow per-template install
-  # would dominate CI time as the registry grows. The static checks below
-  # (JSON parse, file existence, secret patterns, SQL parse, edge-function
-  # tsc) cover what install would catch except the rare "package was
-  # yanked from npm" case — we'll catch that via Dependabot/Snyk later.
   edge-function-tsc:
     name: tsc --noEmit on edge functions
     runs-on: ubuntu-latest
@@ -91,4 +84,34 @@ jobs:
               echo "::error file=$f::Cover $f is ${size} bytes; max is 1048576 (1 MB)"
               exit 1
             fi
+          done
+
+  publishable-builds:
+    name: Native template build and artifact admission
+    runs-on: ubuntu-latest
+    needs: [validate-registry]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned package managers
+        run: corepack enable
+      - name: Build every native template with its controlled profile
+        run: |
+          { node -e "for (const item of require('./registry.json')) if (item.publishingCompatibility === 'native') console.log(item.slug + '\t' + item.buildProfile)"; printf 'react\tvite-npm-v1\ntodo\tnext-static-npm-v1\n'; } |
+          while IFS=$'\t' read -r slug profile; do
+            case "$profile" in
+              vite-npm-v1|next-static-npm-v1)
+                (cd "$slug" && npm ci --ignore-scripts && npm run build)
+                ;;
+              vite-pnpm-v1|next-static-pnpm-v1)
+                (cd "$slug" && pnpm install --frozen-lockfile --ignore-scripts && pnpm run build)
+                ;;
+              *)
+                echo "::error::$slug declares unknown controlled profile $profile"
+                exit 1
+                ;;
+            esac
+            node scripts/verify-publishable-template.mjs "$slug"
           done
