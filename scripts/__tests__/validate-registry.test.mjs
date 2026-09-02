@@ -15,6 +15,7 @@ function entry(slug, overrides = {}) {
     description: 'd',
     category: 'ai',
     framework: 'nextjs',
+    publishingCompatibility: 'unsupported',
     features: [],
     tags: [],
     cover: `assets/covers/${slug}.png`,

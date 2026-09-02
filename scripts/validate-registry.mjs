@@ -19,6 +19,9 @@ const SCHEMA = {
       description: { type: 'string', minLength: 1 },
       category: { type: 'string', minLength: 1 },
       framework: { type: 'string', minLength: 1 },
+      buildProfile: { enum: ['vite-npm-v1', 'vite-pnpm-v1', 'next-static-npm-v1', 'next-static-pnpm-v1'] },
+      publishingCompatibility: { enum: ['native', 'conversion-required', 'requires-node-runtime', 'reference-only', 'unsupported'] },
+      publishingBlockers: { type: 'array', uniqueItems: true, items: { type: 'string', minLength: 1 } },
       features: { type: 'array', items: { type: 'string' } },
       tags: { type: 'array', items: { type: 'string' } },
       requiredCapabilities: {
@@ -148,15 +151,31 @@ export async function validateTemplate(entry, repoRoot) {
     return { ok: false, errors };
   }
   const pkgPath = join(subdir, 'package.json');
+	let pkg;
   if (!existsSync(pkgPath)) {
     errors.push(`${entry.slug}/package.json: missing`);
   } else {
     try {
-      JSON.parse(readFileSync(pkgPath, 'utf8'));
+			pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     } catch (e) {
       errors.push(`${entry.slug}/package.json: invalid JSON (${e.message})`);
     }
   }
+	if (!entry.publishingCompatibility) {
+		errors.push(`${entry.slug}: publishingCompatibility is required`);
+	} else if (entry.publishingCompatibility === 'native') {
+		if (!entry.buildProfile) errors.push(`${entry.slug}: native templates require a controlled buildProfile`);
+		const pnpm = entry.buildProfile?.includes('-pnpm-');
+		const lockfile = pnpm ? 'pnpm-lock.yaml' : 'package-lock.json';
+		if (!existsSync(join(subdir, lockfile))) errors.push(`${entry.slug}/${lockfile}: required by ${entry.buildProfile}`);
+		if (pnpm && !pkg?.packageManager?.startsWith('pnpm@')) errors.push(`${entry.slug}: packageManager must pin pnpm for a pnpm build profile`);
+		const allowedBuildScripts = entry.buildProfile?.startsWith('vite-')
+			? ['vite build', 'tsc -b && vite build', 'vue-tsc -b && vite build']
+			: ['next build'];
+		if (!allowedBuildScripts.includes(pkg?.scripts?.build)) errors.push(`${entry.slug}: build script is not allowed by ${entry.buildProfile}`);
+	} else if ((entry.publishingCompatibility === 'requires-node-runtime' || entry.publishingCompatibility === 'conversion-required') && !entry.publishingBlockers?.length) {
+		errors.push(`${entry.slug}: non-native templates must explain their publishing blockers`);
+	}
   if (!existsSync(join(subdir, 'LICENSE'))) {
     errors.push(`${entry.slug}/LICENSE: missing`);
   }
