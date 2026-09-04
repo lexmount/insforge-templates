@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
-import posthog from 'posthog-js';
+import { analytics } from '@/lib/analytics';
 
 export function SignUpForm() {
   const [name, setName] = useState('');
@@ -25,14 +25,14 @@ export function SignUpForm() {
 
     if (error) {
       toast.error(error.message ?? 'Sign up failed');
-      posthog.captureException(new Error(error.message ?? 'Sign up failed'));
+      analytics.track('sign_up_failed');
       setIsLoading(false);
       return;
     }
 
-    const userId = (data as { user?: { id?: string } } | null)?.user?.id ?? email.trim();
-    posthog.identify(userId, { email: email.trim(), name: name.trim() });
-    posthog.capture('user_signed_up', { email: email.trim(), name: name.trim() });
+    const userId = (data as { user?: { id?: string } } | null)?.user?.id;
+    if (userId) analytics.identify(userId);
+    analytics.signUpCompleted();
     window.location.href = '/chat';
   }
 

@@ -31,6 +31,16 @@ jobs:
         working-directory: scripts
         run: npm test
 
+      - name: Validate analytics contract
+        run: node scripts/check-analytics.mjs
+
+  # We deliberately do NOT run `npm install` on each template in CI:
+  # contributors install locally before opening a PR, package-lock.json
+  # makes the install reproducible, and the slow per-template install
+  # would dominate CI time as the registry grows. The static checks below
+  # (JSON parse, file existence, secret patterns, SQL parse, edge-function
+  # tsc) cover what install would catch except the rare "package was
+  # yanked from npm" case — we'll catch that via Dependabot/Snyk later.
   edge-function-tsc:
     name: tsc --noEmit on edge functions
     runs-on: ubuntu-latest

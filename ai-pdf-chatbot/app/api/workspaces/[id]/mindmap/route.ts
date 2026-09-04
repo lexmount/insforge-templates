@@ -95,7 +95,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   posthog.capture({
     distinctId: auth.viewer.id ?? 'anonymous',
     event: 'mindmap_generated',
-    properties: { workspace_id: id, workspace_name: ws.name, document_count: docs.length },
+    properties: { workspace_id: id, document_count: docs.length },
   });
   // Analytics flush failure must not surface as a 500 for the user;
   // the write above already succeeded. Swallow the error.

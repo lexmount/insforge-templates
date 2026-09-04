@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Analytics } from '@vercel/analytics/next';
 import { Cormorant_Garamond, Manrope } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants';
@@ -35,12 +34,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
+      <head>
+        <script src="/.well-known/insforge-runtime-config.js" />
+      </head>
       <body
         className={`${manrope.variable} ${cormorant.variable} bg-background font-sans text-foreground`}
       >
         {children}
         <Toaster position="top-right" richColors />
-        <Analytics />
       </body>
     </html>
   );

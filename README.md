@@ -69,6 +69,7 @@ Not standalone templates. These are scaffolds the CLI overlays on top of an exis
 - Framework starters and app templates built with [Next.js](https://nextjs.org), [React](https://react.dev), and [Vite](https://vite.dev)
 - UI foundations built with [Tailwind CSS](https://tailwindcss.com) across the repository
 - Authentication, database, and storage integration with [InsForge](https://insforge.dev)
+- Platform-managed PostHog analytics with a shared [event and privacy contract](./ANALYTICS.md)
 - Per-template setup guides and example environment variables for local development
 - Deployment paths designed to work well with [Vercel](https://vercel.com)
 - Templates designed to be adapted into real products

@@ -13,7 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="dark">
-      <head><script src="/.well-known/insforge-runtime-config.js" /></head>
+      <head>
+        <script src="/.well-known/insforge-runtime-config.js" />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );
