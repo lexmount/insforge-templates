@@ -184,7 +184,7 @@ export function ChatPage({ email, navigate, onSignOut }: ChatPageProps) {
           <button className="topbar-settings" aria-label="Agent 设置" type="button" onClick={() => navigate('/settings')}><Settings aria-hidden="true" /></button>
         </header>
 
-        <div className="chat-transcript" role="log" aria-live="polite">
+        <div className="chat-transcript" role="log" aria-live="polite" data-private>
           {configLoading ? (
             <div className="chat-loading"><span /><span /><span /></div>
           ) : !config?.configured ? (

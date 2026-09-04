@@ -893,7 +893,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
           </div>
         </header>
 
-        <div ref={scrollContainerRef} className="chat-scrollbar relative flex-1 overflow-y-auto bg-background">
+        <div ref={scrollContainerRef} className="chat-scrollbar relative flex-1 overflow-y-auto bg-background" data-private>
           <div className="mx-auto flex min-w-0 max-w-4xl flex-col gap-4 px-2 py-4 md:gap-6 md:px-4">
             {isBootstrapping || isLoadingThread ? (
               <div className="flex min-h-[50vh] items-center justify-center">

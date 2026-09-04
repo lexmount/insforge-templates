@@ -52,6 +52,8 @@ for (const name of templates) {
     const moduleEntryIndex = documentSource.indexOf('<script type="module"');
     assert(moduleEntryIndex >= 0 && runtimeConfigIndex < moduleEntryIndex,
       `${name}: runtime config must load before the Vite module entry`);
+    assert(/\bvite-ignore\b/.test(runtimeConfigAttributes),
+      `${name}: runtime config script must opt out of Vite processing`);
   }
   assert(envExample.includes('POSTHOG_PROJECT_TOKEN'), `${name}: missing PostHog env documentation`);
   assert(!pkg.dependencies?.['@vercel/analytics'], `${name}: do not mix Vercel and PostHog analytics`);
@@ -66,5 +68,15 @@ const chatbotSources = [
 
 assert(!/posthog\.(?:capture|identify)[\s\S]{0,300}\b(?:email|name|file_name|workspace_name)\b/i.test(chatbotSources),
   'ai-pdf-chatbot: analytics payload contains a direct PII field');
+
+for (const [template, path] of [
+  ['chatbot', 'components/chat-shell.tsx'],
+  ['insight-flow-agent-chat', 'src/components/ChatPage.tsx'],
+  ['ai-pdf-chatbot', 'app/chat/page.tsx'],
+  ['ai-pdf-chatbot', 'app/chat/[chatId]/page.tsx'],
+]) {
+  assert(readFileSync(join(root, template, path), 'utf8').includes('data-private'),
+    `${template}: conversation content must be excluded from session replay text capture`);
+}
 
 console.log(`Analytics contract validated for ${templates.length} templates.`);
