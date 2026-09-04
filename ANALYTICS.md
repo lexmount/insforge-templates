@@ -30,17 +30,19 @@ Import `analytics` from the template's `lib/analytics` module. Use its semantic 
 fit, or `analytics.track('domain_event', { safe_property: value })`. Conversion events must fire
 only after the operation succeeds; payments must include their stable transaction ID.
 
-The shared baseline is `cta_clicked`, `form_started`, `form_submitted`, `sign_up_completed`,
-`login_completed`, and `purchase_completed`. PostHog supplies page views, page leaves, and web
-performance measurements. Every event is registered with application, environment,
-template-version, and release context.
+Every template automatically captures page views, page leaves, and web performance measurements.
+The helper also provides `cta_clicked`, `form_started`, `form_submitted`, `sign_up_completed`,
+`login_completed`, and `purchase_completed`, but templates must wire those semantic events into
+their own successful business operations. Every event is registered with application,
+environment, template-version, and release context.
 
 Never send names, emails, phone numbers, addresses, credentials, access tokens, form bodies,
 prompts, message text, filenames, or raw URLs containing query parameters. `identify` accepts only
 the application's opaque user ID and no person properties. The helper drops common PII property
 keys and email-shaped values as a final guard, but this does not replace careful event design.
 
-Session replay defaults to a 10% client sample, masks all inputs, and masks/blocks elements marked
+Session replay defaults to a stable 10% per-session sample, masks all inputs and personal-data
+properties, and masks/blocks elements marked
 `data-private`. Add `data-private` to any region that renders customer content. Autocapture is off,
 so product events remain stable when markup or copy changes.
 

@@ -34,7 +34,7 @@ function safeProperties(properties: AnalyticsProperties = {}): Record<string, st
 function sanitizePostHogProperties(properties: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = { ...properties }
   for (const key of Object.keys(sanitized)) {
-    if (PII_KEY.test(key)) delete sanitized[key]
+    if (!key.startsWith('$') && PII_KEY.test(key)) delete sanitized[key]
   }
   for (const key of URL_KEYS) {
     const value = sanitized[key]
@@ -66,9 +66,10 @@ export function initializeAnalytics(): void {
     capture_pageleave: true,
     capture_performance: true,
     person_profiles: 'identified_only',
+    mask_personal_data_properties: true,
     sanitize_properties: sanitizePostHogProperties,
-    disable_session_recording: Math.random() >= replaySampleRate,
     session_recording: {
+      sampleRate: replaySampleRate,
       maskAllInputs: true,
       maskTextSelector: '[data-private]',
       blockSelector: '[data-private]',

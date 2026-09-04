@@ -31,6 +31,8 @@ for (const name of templates) {
   assert(helperSource.includes('__INSFORGE_RUNTIME_CONFIG__'), `${name}: runtime config is not preferred`);
   assert(helperSource.includes('autocapture: false'), `${name}: unsafe autocapture must stay disabled`);
   assert(helperSource.includes('maskAllInputs: true'), `${name}: replay inputs must be masked`);
+  assert(helperSource.includes('mask_personal_data_properties: true'), `${name}: PostHog person properties must be masked`);
+  assert(helperSource.includes('sampleRate: replaySampleRate'), `${name}: replay sampling must remain stable per session`);
   assert(helperSource.includes('capture_performance: true'), `${name}: performance capture must be enabled`);
   assert(helperSource.includes('sanitize_properties'), `${name}: URLs and PII must be sanitized`);
   assert(helperSource.includes("process.env.NODE_ENV !== 'production'") || helperSource.includes('import.meta.env.PROD'), `${name}: analytics must be production-only`);
@@ -45,6 +47,7 @@ for (const name of templates) {
   const runtimeConfigIndex = runtimeConfigMatch.index;
   if (isNext) {
     assert(runtimeConfigIndex < documentSource.indexOf('<body'), `${name}: runtime config must load in head before hydration`);
+    assert(bootstrapSource.includes('DOMContentLoaded'), `${name}: Next analytics must retry after the synchronous runtime config loads`);
   } else {
     const moduleEntryIndex = documentSource.indexOf('<script type="module"');
     assert(moduleEntryIndex >= 0 && runtimeConfigIndex < moduleEntryIndex,
