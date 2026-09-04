@@ -88,7 +88,7 @@ function ChatHomePageInner() {
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6" data-private>
         {pendingInput ? (
           <div className="mx-auto flex max-w-2xl flex-col gap-4">
             <ChatMessage role="user" content={pendingInput} />

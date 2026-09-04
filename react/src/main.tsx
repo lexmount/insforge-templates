@@ -5,6 +5,9 @@ import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './lib/auth-context.tsx';
 import { ThemeProvider } from './lib/theme.tsx';
+import { initializeAnalytics } from './lib/analytics';
+
+initializeAnalytics();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Failed to find the root element');

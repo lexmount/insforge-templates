@@ -93,7 +93,6 @@ export async function POST(req: Request) {
     event: 'document_uploaded',
     properties: {
       document_id: doc.id,
-      file_name: file.name,
       file_size_bytes: file.size,
       workspace_id: workspaceId,
       ingest_status: ingestResult.status,

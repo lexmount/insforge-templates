@@ -5,6 +5,9 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { Toaster } from 'sonner'
 import { routeTree } from './routeTree.gen'
 import './styles/globals.css'
+import { initializeAnalytics } from './lib/analytics'
+
+initializeAnalytics()
 
 const queryClient = new QueryClient({
   defaultOptions: {

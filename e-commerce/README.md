@@ -2,7 +2,7 @@
 
 A full-stack e-commerce starter built with Next.js, Tailwind CSS, and InsForge.
 
-**[Features](#features)** · **[Demo](#demo)** · **[Quick Launch](#quick-launch)** · **[Run locally](#run-locally)** · **[Deploy to Vercel](#deploy-to-vercel)** · **[First Try](#first-try)** · **[Vercel Analytics](#vercel-analytics)** · **[Customize](#customize)**
+**[Features](#features)** · **[Demo](#demo)** · **[Quick Launch](#quick-launch)** · **[Run locally](#run-locally)** · **[Deploy to Vercel](#deploy-to-vercel)** · **[First Try](#first-try)** · **[Analytics](#analytics)** · **[Customize](#customize)**
 
 ![InsForge E-Commerce starter preview](public/e-commerce-readme-cover.png)
 
@@ -14,7 +14,7 @@ This starter includes a public storefront, seeded catalog data, customer authent
 - Variant-aware product pages and customer shopping flow
 - Authenticated cart, checkout, saved addresses, and order history
 - [InsForge](https://insforge.dev) authentication, database, storage, and Row Level Security
-- [Vercel Analytics](https://vercel.com/docs/analytics) for page-level traffic insights
+- Platform-managed PostHog analytics for traffic, conversions, retention, and privacy-safe replay
 - Built with [Next.js](https://nextjs.org), React 19, and [Tailwind CSS](https://tailwindcss.com)
 - Real Stripe Checkout with Apple Pay, Google Pay, and Link via InsForge Payments
 - Promotion codes redeemable at Stripe Checkout (configured in your Stripe dashboard, see Stripe setup section)
@@ -170,25 +170,12 @@ After cloning the repo and running the starter locally, you can deploy it on Ver
 
 After the migration runs, start by opening the home page, browsing a category, and opening a product detail page to see the seeded catalog in context. Then sign up, add a product to the cart, complete checkout, and open the account area to confirm that saved addresses and order history are backed by real database records.
 
-## Vercel Analytics
+## Analytics
 
-[Vercel Analytics](https://vercel.com/docs/analytics) is already enabled via [`@vercel/analytics`](https://www.npmjs.com/package/@vercel/analytics), so page-level traffic is tracked automatically when you deploy on Vercel.
-
-The starter currently adds Analytics in [`app/layout.tsx`](./app/layout.tsx), which is enough to track page views across the storefront, product pages, cart, checkout, and account routes.
-
-If you want deeper conversion tracking, a good first step is adding an `Add to Cart` event in [`components/add-to-cart-button.tsx`](./components/add-to-cart-button.tsx):
-
-```tsx
-import { track } from '@vercel/analytics/react';
-
-await addToCartAction(productId, quantity, variantId);
-track('Add to Cart', {
-  productId,
-  variantId: variantId ?? null,
-  quantity,
-});
-toast.success('Added to cart.');
-```
+Production deployments use the platform-managed PostHog project automatically. Page views and
+page leaves require no application code. Import `analytics` from `@/lib/analytics` for explicit
+business conversions such as a successful checkout. See [`../ANALYTICS.md`](../ANALYTICS.md) for
+the event and privacy contract.
 
 ## Customize
 

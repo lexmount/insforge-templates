@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   posthog.capture({
     distinctId: auth.viewer.id,
     event: 'workspace_created',
-    properties: { workspace_id: ws.id, workspace_name: name },
+    properties: { workspace_id: ws.id },
   });
   // Analytics flush failure must not surface as a 500 for the user;
   // the write above already succeeded. Swallow the error.

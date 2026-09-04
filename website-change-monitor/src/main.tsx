@@ -20,7 +20,10 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { connected, insforge } from "./lib/insforge";
+import { initializeAnalytics } from "./lib/analytics";
 import "./index.css";
+
+initializeAnalytics();
 
 type Target = {
   id: string;
