@@ -1,12 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
-import { validateSchema, validateTemplate } from '../validate-registry.mjs';
+import { BUILT_IN_PUBLISHING_CONTRACTS, validateSchema, validateTemplate } from '../validate-registry.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
 const repoRoot = resolve(here, 'fixtures', 'repo');
+const realRepoRoot = resolve(here, '../..');
+
+function publishingFixture(packageJSON, extraFiles = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'insforge-template-validation-'));
+  const subdir = join(root, 'native-template');
+  mkdirSync(subdir, { recursive: true });
+  writeFileSync(join(subdir, 'package.json'), JSON.stringify(packageJSON));
+  writeFileSync(join(subdir, 'package-lock.json'), '{"lockfileVersion":3}');
+  for (const [name, body] of Object.entries(extraFiles)) {
+    const target = join(subdir, name);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, body);
+  }
+  return root;
+}
 
 function entry(slug, overrides = {}) {
   return {
@@ -16,6 +32,7 @@ function entry(slug, overrides = {}) {
     category: 'ai',
     framework: 'nextjs',
     publishingCompatibility: 'unsupported',
+    publishingBlockers: ['No controlled publishing path'],
     features: [],
     tags: [],
     cover: `assets/covers/${slug}.png`,
@@ -144,6 +161,92 @@ describe('validateTemplate — filesystem', () => {
     );
     expect(r).toEqual({ ok: true, errors: [] });
   });
+
+  it('rejects non-native templates without an actionable blocker', async () => {
+    const r = await validateTemplate(
+      entry('good-slug', { publishingBlockers: [] }),
+      repoRoot,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/explain their publishing blockers/i);
+  });
+
+  it('rejects a native build profile that contradicts the framework or source', async () => {
+		const root = publishingFixture({
+			scripts: { build: 'vite build' },
+			dependencies: { react: '1', vite: '1' },
+		});
+    const r = await validateTemplate(
+			entry('native-template', {
+        framework: 'nextjs',
+        publishingCompatibility: 'native',
+        publishingBlockers: [],
+        buildProfile: 'vite-npm-v1',
+				cover: '',
+      }),
+			root,
+			{ publishingOnly: true },
+    );
+    expect(r.ok).toBe(false);
+		expect(r.errors).toContain('native-template: vite-npm-v1 is incompatible with framework nextjs');
+  });
+
+	it('rejects conflicting lockfiles, package managers, lifecycle scripts, and workspaces', async () => {
+		const root = publishingFixture({
+			packageManager: 'yarn@1.22.0',
+			workspaces: ['packages/*'],
+			scripts: { build: 'vite build', prepare: 'husky' },
+			dependencies: { react: '1', vite: '1' },
+		}, { 'pnpm-lock.yaml': "lockfileVersion: '9.0'" });
+		const r = await validateTemplate(entry('native-template', {
+			framework: 'react', publishingCompatibility: 'native', publishingBlockers: [],
+			buildProfile: 'vite-npm-v1', cover: '',
+		}), root, { publishingOnly: true });
+		expect(r.errors.join('\n')).toMatch(/pnpm-lock.yaml: conflicts/);
+		expect(r.errors.join('\n')).toMatch(/packageManager must match/);
+		expect(r.errors.join('\n')).toMatch(/workspaces are not supported/);
+		expect(r.errors.join('\n')).toMatch(/lifecycle script prepare/);
+	});
+
+	it('rejects Next.js static profiles with runtime-only source', async () => {
+		const root = publishingFixture({
+			scripts: { build: 'next build' },
+			dependencies: { next: '1', react: '1' },
+		}, {
+			'next.config.ts': "export default { output: 'export' }",
+			'app/api/chat/route.ts': 'export async function POST() {}',
+		});
+		const r = await validateTemplate(entry('native-template', {
+			framework: 'nextjs', publishingCompatibility: 'native', publishingBlockers: [],
+			buildProfile: 'next-static-npm-v1', cover: '',
+		}), root, { publishingOnly: true });
+		expect(r.errors.join('\n')).toMatch(/requires a Node runtime/);
+	});
+
+	it('rejects Next.js static profiles without output export', async () => {
+		const root = publishingFixture({
+			scripts: { build: 'next build' },
+			dependencies: { next: '1', react: '1' },
+		}, { 'next.config.ts': 'export default {}' });
+		const r = await validateTemplate(entry('native-template', {
+			framework: 'nextjs', publishingCompatibility: 'native', publishingBlockers: [],
+			buildProfile: 'next-static-npm-v1', cover: '',
+		}), root, { publishingOnly: true });
+		expect(r.errors.join('\n')).toMatch(/requires output: export/);
+	});
+
+	it('validates publishing contracts for platform-provided starter entries', async () => {
+		expect(BUILT_IN_PUBLISHING_CONTRACTS).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				slug: 'todo', framework: 'nextjs',
+				buildProfile: 'next-static-npm-v1', publishingCompatibility: 'native',
+			}),
+		]));
+		for (const contract of BUILT_IN_PUBLISHING_CONTRACTS) {
+			const r = await validateTemplate(contract, realRepoRoot, { publishingOnly: true });
+			expect(r.errors, contract.slug).toEqual([]);
+		}
+	});
 });
 
 describe('validateTemplate — SQL', () => {

@@ -52,6 +52,13 @@ const ajv = new Ajv({ allErrors: true });
 addFormats(ajv);
 const validate = ajv.compile(SCHEMA);
 
+// Keep aligned with starterEntries() in insforge-platform/internal/templatecatalog/sync.go.
+export const BUILT_IN_PUBLISHING_CONTRACTS = [
+  { slug: 'react', framework: 'react', buildProfile: 'vite-npm-v1', publishingCompatibility: 'native', publishingBlockers: [] },
+  { slug: 'todo', framework: 'nextjs', buildProfile: 'next-static-npm-v1', publishingCompatibility: 'native', publishingBlockers: [] },
+  { slug: 'nextjs', framework: 'nextjs', publishingCompatibility: 'requires-node-runtime', publishingBlockers: ['Uses request-time authentication, redirects, and Server Actions'] },
+];
+
 // Patterns that strongly indicate a real secret was committed.
 // Surgical list — false positives block legit PRs.
 const SECRET_PATTERNS = [
@@ -66,8 +73,8 @@ const PLATFORM_AI_SOURCE_EXTENSIONS = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json', '.vue', '.svelte',
   '.py', '.go', '.java', '.kt', '.swift', '.rb', '.php', '.sh', '.yaml', '.yml',
 ]);
-const PLATFORM_AI_IGNORED_DIRECTORIES = new Set([
-  '.git', '.next', 'build', 'coverage', 'dist', 'node_modules',
+const TEMPLATE_IGNORED_DIRECTORIES = new Set([
+  '.git', '.next', 'build', 'coverage', 'dist', 'node_modules', 'out',
 ]);
 const PLATFORM_AI_FORBIDDEN_BINDINGS = [
   { pattern: /https?:\/\/openrouter\.ai\b/i, label: 'direct OpenRouter endpoint' },
@@ -80,27 +87,37 @@ const PLATFORM_AI_FORBIDDEN_BINDINGS = [
     label: 'provider API key environment variable',
   },
 ];
+const FORBIDDEN_PUBLISHING_LIFECYCLE_SCRIPTS = [
+  'preinstall', 'install', 'postinstall', 'prepublish', 'prepublishOnly',
+  'preprepare', 'prepare', 'postprepare', 'prebuild', 'postbuild',
+];
+const NEXT_RUNTIME_SOURCE_PATTERN = /(['"]use server['"]|from\s+['"]next\/headers['"]|from\s+['"]server-only['"]|\b(?:cookies|headers)\s*\()/m;
+const NEXT_STATIC_EXPORT_PATTERN = /output\s*:\s*['"]export['"]/m;
 
-function platformAISourceFiles(root) {
+function templateFiles(root, include = () => true) {
   const files = [];
   const visit = (dir) => {
     for (const item of readdirSync(dir, { withFileTypes: true })) {
       if (item.isDirectory()) {
-        if (!PLATFORM_AI_IGNORED_DIRECTORIES.has(item.name)) visit(join(dir, item.name));
+        if (!TEMPLATE_IGNORED_DIRECTORIES.has(item.name)) visit(join(dir, item.name));
         continue;
       }
       if (!item.isFile()) continue;
-      const extension = item.name.slice(item.name.lastIndexOf('.'));
-      if (
-        (PLATFORM_AI_SOURCE_EXTENSIONS.has(extension) && item.name !== 'package-lock.json')
-        || item.name.startsWith('.env')
-      ) {
-        files.push(join(dir, item.name));
-      }
+      if (include(item.name)) files.push(join(dir, item.name));
     }
   };
   visit(root);
   return files;
+}
+
+function platformAISourceFiles(root) {
+  return templateFiles(root, (name) => {
+    const extension = name.slice(name.lastIndexOf('.'));
+    return (
+      (PLATFORM_AI_SOURCE_EXTENSIONS.has(extension) && name !== 'package-lock.json')
+      || name.startsWith('.env')
+    );
+  });
 }
 
 function validatePlatformManagedAI(entry, subdir) {
@@ -143,7 +160,7 @@ export function validateSchema(registry) {
   return { ok: errors.length === 0, errors };
 }
 
-export async function validateTemplate(entry, repoRoot) {
+export async function validateTemplate(entry, repoRoot, { publishingOnly = false } = {}) {
   const errors = [];
   const subdir = join(repoRoot, entry.slug);
   if (!existsSync(subdir) || !statSync(subdir).isDirectory()) {
@@ -165,27 +182,64 @@ export async function validateTemplate(entry, repoRoot) {
 		errors.push(`${entry.slug}: publishingCompatibility is required`);
 	} else if (entry.publishingCompatibility === 'native') {
 		if (!entry.buildProfile) errors.push(`${entry.slug}: native templates require a controlled buildProfile`);
+		if (entry.publishingBlockers?.length) errors.push(`${entry.slug}: native templates cannot declare publishingBlockers`);
+		const framework = entry.framework?.trim().toLowerCase();
+		if (entry.buildProfile?.startsWith('vite-') && !['react', 'vue', 'vite', 'vite-react', 'vite-vue', 'react-vite', 'vue-vite'].includes(framework)) {
+			errors.push(`${entry.slug}: ${entry.buildProfile} is incompatible with framework ${entry.framework}`);
+		}
+		if (entry.buildProfile?.startsWith('next-static-') && framework !== 'nextjs') {
+			errors.push(`${entry.slug}: ${entry.buildProfile} is incompatible with framework ${entry.framework}`);
+		}
 		const pnpm = entry.buildProfile?.includes('-pnpm-');
 		const lockfile = pnpm ? 'pnpm-lock.yaml' : 'package-lock.json';
 		if (!existsSync(join(subdir, lockfile))) errors.push(`${entry.slug}/${lockfile}: required by ${entry.buildProfile}`);
-		if (pnpm && !pkg?.packageManager?.startsWith('pnpm@')) errors.push(`${entry.slug}: packageManager must pin pnpm for a pnpm build profile`);
-		const allowedBuildScripts = entry.buildProfile?.startsWith('vite-')
-			? ['vite build', 'tsc -b && vite build', 'vue-tsc -b && vite build']
-			: ['next build'];
-		if (!allowedBuildScripts.includes(pkg?.scripts?.build)) errors.push(`${entry.slug}: build script is not allowed by ${entry.buildProfile}`);
-	} else if ((entry.publishingCompatibility === 'requires-node-runtime' || entry.publishingCompatibility === 'conversion-required') && !entry.publishingBlockers?.length) {
-		errors.push(`${entry.slug}: non-native templates must explain their publishing blockers`);
+		const otherLockfile = pnpm ? 'package-lock.json' : 'pnpm-lock.yaml';
+		if (existsSync(join(subdir, otherLockfile))) errors.push(`${entry.slug}/${otherLockfile}: conflicts with ${entry.buildProfile}`);
+		if (pkg) {
+			if (pnpm && !pkg.packageManager?.startsWith('pnpm@')) errors.push(`${entry.slug}: packageManager must pin pnpm for a pnpm build profile`);
+			if (!pnpm && pkg.packageManager && !pkg.packageManager.startsWith('npm@')) errors.push(`${entry.slug}: packageManager must match the npm build profile`);
+			if (pkg.workspaces != null) errors.push(`${entry.slug}: package.json workspaces are not supported by controlled publishing`);
+			for (const script of FORBIDDEN_PUBLISHING_LIFECYCLE_SCRIPTS) {
+				if (pkg.scripts?.[script]?.trim()) errors.push(`${entry.slug}: lifecycle script ${script} is not allowed by controlled publishing`);
+			}
+			const dependencies = { ...pkg.dependencies, ...pkg.devDependencies };
+			if (entry.buildProfile?.startsWith('vite-') && !dependencies.vite) errors.push(`${entry.slug}: ${entry.buildProfile} requires a Vite dependency`);
+			if (entry.buildProfile?.startsWith('next-static-') && !dependencies.next) errors.push(`${entry.slug}: ${entry.buildProfile} requires a Next.js dependency`);
+			const allowedBuildScripts = entry.buildProfile?.startsWith('vite-')
+				? ['vite build', 'tsc -b && vite build', 'vue-tsc -b && vite build']
+				: ['next build'];
+			if (!allowedBuildScripts.includes(pkg.scripts?.build)) errors.push(`${entry.slug}: build script is not allowed by ${entry.buildProfile}`);
+			if (entry.buildProfile?.startsWith('next-static-')) {
+				const configs = ['next.config.js', 'next.config.mjs', 'next.config.ts']
+					.filter((name) => existsSync(join(subdir, name)))
+					.map((name) => readFileSync(join(subdir, name), 'utf8'))
+					.join('\n');
+				if (!NEXT_STATIC_EXPORT_PATTERN.test(configs)) errors.push(`${entry.slug}: Next.js static publishing requires output: export`);
+				for (const file of templateFiles(subdir)) {
+					const relative = file.slice(subdir.length + 1).replaceAll('\\', '/').toLowerCase();
+					if (relative.includes('/app/api/') || relative.startsWith('app/api/')
+						|| relative.includes('/pages/api/') || relative.startsWith('pages/api/')
+						|| ['middleware.ts', 'middleware.js'].includes(relative.split('/').at(-1))
+						|| NEXT_RUNTIME_SOURCE_PATTERN.test(readFileSync(file, 'utf8'))) {
+						errors.push(`${entry.slug}/${relative}: requires a Node runtime and cannot use ${entry.buildProfile}`);
+					}
+				}
+			}
+		}
+	} else {
+		if (entry.buildProfile) errors.push(`${entry.slug}: only native templates may declare buildProfile`);
+		if (!entry.publishingBlockers?.length) errors.push(`${entry.slug}: non-native templates must explain their publishing blockers`);
 	}
-  if (!existsSync(join(subdir, 'LICENSE'))) {
+  if (!publishingOnly && !existsSync(join(subdir, 'LICENSE'))) {
     errors.push(`${entry.slug}/LICENSE: missing`);
   }
-  if (!existsSync(join(subdir, 'README.md'))) {
+  if (!publishingOnly && !existsSync(join(subdir, 'README.md'))) {
     errors.push(`${entry.slug}/README.md: missing`);
   }
   const envPath = join(subdir, '.env.example');
-  if (!existsSync(envPath)) {
+  if (!publishingOnly && !existsSync(envPath)) {
     errors.push(`${entry.slug}/.env.example: missing`);
-  } else {
+  } else if (!publishingOnly) {
     const text = readFileSync(envPath, 'utf8');
     for (const re of SECRET_PATTERNS) {
       if (re.test(text)) {
@@ -194,7 +248,7 @@ export async function validateTemplate(entry, repoRoot) {
       }
     }
   }
-  if (entry.cover) {
+  if (!publishingOnly && entry.cover) {
     // Reject absolute paths or any `..` segment so a hostile registry entry
     // can't point cover at `/etc/passwd` or `../../some-secret/file.png`.
     // Cover must be a relative path inside the repo.
@@ -209,10 +263,10 @@ export async function validateTemplate(entry, repoRoot) {
       errors.push(`${entry.slug}: cover file ${entry.cover} not found`);
     }
   }
-  errors.push(...validatePlatformManagedAI(entry, subdir));
+  if (!publishingOnly) errors.push(...validatePlatformManagedAI(entry, subdir));
   // SQL parse check
   const migrationsDir = join(subdir, 'migrations');
-  if (existsSync(migrationsDir) && statSync(migrationsDir).isDirectory()) {
+  if (!publishingOnly && existsSync(migrationsDir) && statSync(migrationsDir).isDirectory()) {
     const { default: PgQuery } = await import('pg-query-emscripten');
     const pg = await PgQuery();
     for (const file of readdirSync(migrationsDir)) {
@@ -246,6 +300,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const r = await validateTemplate(entry, repoRoot);
       allErrors.push(...r.errors);
     }
+		const registrySlugs = new Set(registry.map((entry) => entry.slug));
+		for (const entry of BUILT_IN_PUBLISHING_CONTRACTS) {
+			if (registrySlugs.has(entry.slug)) continue;
+			const r = await validateTemplate(entry, repoRoot, { publishingOnly: true });
+			allErrors.push(...r.errors);
+		}
   }
 
   if (allErrors.length > 0) {
@@ -253,6 +313,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const e of allErrors) console.error(`  - ${e}`);
     process.exit(1);
   } else {
-    console.log(`Registry OK (${registry.length} templates).`);
+    console.log(`Registry and built-in publishing contracts OK (${registry.length + BUILT_IN_PUBLISHING_CONTRACTS.filter((entry) => !registry.some((item) => item.slug === entry.slug)).length} templates).`);
   }
 }
