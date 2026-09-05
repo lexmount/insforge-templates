@@ -3,7 +3,6 @@ import { createInsforgeServerClient } from '@/lib/insforge';
 import { getCurrentAuthState } from '@/lib/auth-state';
 import { generateAudioScript } from '@/lib/ai/audio-script';
 import { synthesizeScript } from '@/lib/audio/tts';
-import { getPostHogClient } from '@/lib/posthog-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -98,16 +97,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     })
     .eq('id', id);
   if (upd.error) return NextResponse.json({ error: upd.error.message }, { status: 500 });
-
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: auth.viewer.id,
-    event: 'audio_overview_generated',
-    properties: { workspace_id: id, document_count: docs.length, script_turn_count: script.length },
-  });
-  // Analytics flush failure must not surface as a 500 for the user;
-  // the write above already succeeded. Swallow the error.
-  await posthog.shutdown().catch(() => undefined);
 
   return NextResponse.json({ audio_url: audioUrl, script, generated_at: now });
 }

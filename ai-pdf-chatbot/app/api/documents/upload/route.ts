@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createInsforgeServerClient } from '@/lib/insforge';
 import { getCurrentAuthState } from '@/lib/auth-state';
 import { ingestPdf } from '@/lib/rag/ingest';
-import { getPostHogClient } from '@/lib/posthog-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -86,22 +85,6 @@ export async function POST(req: Request) {
     fileName: file.name,
     buffer,
   });
-
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: auth.viewer.id,
-    event: 'document_uploaded',
-    properties: {
-      document_id: doc.id,
-      file_size_bytes: file.size,
-      workspace_id: workspaceId,
-      ingest_status: ingestResult.status,
-      chunk_count: ingestResult.status === 'ready' ? ingestResult.chunkCount : 0,
-    },
-  });
-  // Analytics flush failure must not surface as a 500 for the user;
-  // the write above already succeeded. Swallow the error.
-  await posthog.shutdown().catch(() => undefined);
 
   return NextResponse.json({
     document: { id: doc.id, file_name: file.name, file_size: file.size, status: ingestResult.status },
