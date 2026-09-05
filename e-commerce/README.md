@@ -14,7 +14,7 @@ This starter includes a public storefront, seeded catalog data, customer authent
 - Variant-aware product pages and customer shopping flow
 - Authenticated cart, checkout, saved addresses, and order history
 - [InsForge](https://insforge.dev) authentication, database, storage, and Row Level Security
-- Platform-managed PostHog analytics for traffic, conversions, retention, and privacy-safe replay
+- Platform-managed GA4 analytics for traffic, conversions, acquisition, and retention
 - Built with [Next.js](https://nextjs.org), React 19, and [Tailwind CSS](https://tailwindcss.com)
 - Real Stripe Checkout with Apple Pay, Google Pay, and Link via InsForge Payments
 - Promotion codes redeemable at Stripe Checkout (configured in your Stripe dashboard, see Stripe setup section)
@@ -172,8 +172,8 @@ After the migration runs, start by opening the home page, browsing a category, a
 
 ## Analytics
 
-Production deployments use the platform-managed PostHog project automatically. Page views and
-page leaves require no application code. Import `analytics` from `@/lib/analytics` for explicit
+Production deployments use the platform-managed GA4 property automatically. Page views and SPA
+route changes require no application code. Import `analytics` from `@/lib/analytics` for explicit
 business conversions such as a successful checkout. See [`../ANALYTICS.md`](../ANALYTICS.md) for
 the event and privacy contract.
 

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createInsforgeServerClient } from '@/lib/insforge';
 import { getCurrentAuthState } from '@/lib/auth-state';
 import { UTILITY_MODEL } from '@/lib/ai/constants';
-import { getPostHogClient } from '@/lib/posthog-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -90,16 +89,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .update({ mindmap_markdown: markdown, mindmap_generated_at: now, updated_at: now })
     .eq('id', id);
   if (upd.error) return NextResponse.json({ error: upd.error.message }, { status: 500 });
-
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: auth.viewer.id ?? 'anonymous',
-    event: 'mindmap_generated',
-    properties: { workspace_id: id, document_count: docs.length },
-  });
-  // Analytics flush failure must not surface as a 500 for the user;
-  // the write above already succeeded. Swallow the error.
-  await posthog.shutdown().catch(() => undefined);
 
   return NextResponse.json({ markdown, generated_at: now });
 }
