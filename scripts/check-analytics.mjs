@@ -33,6 +33,10 @@ for (const name of templates) {
   assert(helperSource.includes('__INSFORGE_RUNTIME_CONFIG__'), `${name}: runtime config is not preferred`);
   assert(helperSource.includes('gaMeasurementId'), `${name}: runtime GA4 measurement ID is missing`);
   assert(helperSource.includes('googletagmanager.com/gtag/js'), `${name}: Google tag is not loaded`);
+  assert(helperSource.includes('window.dataLayer?.push(arguments)'),
+    `${name}: gtag commands must preserve the Arguments object expected by Google`);
+  assert(!helperSource.includes('window.dataLayer?.push(args)'),
+    `${name}: array-wrapped gtag commands are ignored by Google`);
   assert(helperSource.includes('send_page_view: false'), `${name}: automatic and manual page views may be duplicated`);
   assert(helperSource.includes("'page_view'"), `${name}: page views are not captured`);
   assert(helperSource.includes('window.location.pathname'), `${name}: page paths are not sanitized`);
