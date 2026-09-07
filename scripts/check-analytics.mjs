@@ -31,6 +31,10 @@ for (const name of templates) {
   const bootstrapSource = readFileSync(bootstrap, 'utf8');
   const documentSource = readFileSync(document, 'utf8');
   assert(helperSource.includes('__INSFORGE_RUNTIME_CONFIG__'), `${name}: runtime config is not preferred`);
+  assert(helperSource.includes('__INSFORGE_MANAGED_ANALYTICS__'),
+    `${name}: platform-managed analytics is not recognized`);
+  assert(helperSource.includes('managed?.measurementId === configuredId'),
+    `${name}: platform-managed and template analytics may duplicate page views`);
   assert(helperSource.includes('gaMeasurementId'), `${name}: runtime GA4 measurement ID is missing`);
   assert(helperSource.includes('googletagmanager.com/gtag/js'), `${name}: Google tag is not loaded`);
   assert(helperSource.includes('window.dataLayer?.push(arguments)'),

@@ -25,6 +25,7 @@ type RuntimeConfig = {
 declare global {
   interface Window {
     __INSFORGE_RUNTIME_CONFIG__?: RuntimeConfig;
+    __INSFORGE_MANAGED_ANALYTICS__?: { measurementId: string };
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
     __INSFORGE_GA4_NAVIGATION_TRACKING__?: boolean;
@@ -111,6 +112,13 @@ export function initializeAnalytics(): void {
   const runtime = typeof window === 'undefined' ? undefined : window.__INSFORGE_RUNTIME_CONFIG__;
   const configuredId = runtime?.gaMeasurementId || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   if (process.env.NODE_ENV !== 'production' || !configuredId || measurementId) return;
+
+  const managed = window.__INSFORGE_MANAGED_ANALYTICS__;
+  if (managed?.measurementId === configuredId) {
+    measurementId = configuredId;
+    analyticsContext = safeProperties(commonProperties(runtime));
+    return;
+  }
 
   measurementId = configuredId;
   window.dataLayer = window.dataLayer || [];
