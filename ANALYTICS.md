@@ -33,9 +33,13 @@ only after the operation succeeds; payments must include their stable transactio
 
 Every template sends an initial `page_view` and another privacy-safe page view when a Next.js or
 Vite SPA route changes. Page locations contain only origin and pathname; query strings and URL
-fragments are never sent. The semantic helpers emit GA4-compatible events: `cta_click`,
-`form_start`, `generate_lead`, `sign_up`, `login`, and `purchase`. Legacy event names passed to
-`track` are mapped to these names so existing template calls remain compatible. Every event also
+fragments are never sent. The platform disables enhanced measurement's automatic browser-history
+page changes on managed streams, preventing these manual SPA page views from being counted twice.
+The semantic helpers emit GA4-compatible events: `cta_click`, `form_start`, `form_submit`,
+`generate_lead`, `sign_up`, `login`, and `purchase`. `formSubmitted` is an ordinary completed form;
+use `leadSubmitted` only for an actual sales/contact lead because `generate_lead` is a Key Event.
+Legacy event names passed to `track` are mapped to the corresponding non-conversion or recommended
+event names. Every event also
 receives application, environment, template-version, and release context through the shared GA4
 event context.
 
@@ -43,6 +47,11 @@ Never send names, emails, phone numbers, addresses, credentials, access tokens, 
 prompts, message text, filenames, or raw URLs containing query parameters. `identify` accepts only
 the application's opaque user ID and no user properties. The helper drops common PII property keys
 and email-shaped values as a final guard, but this does not replace careful event design.
+For privacy-first behavior, keys containing a delimited `name`, `content`, or `query` token are also
+blocked (for example `template_name`, `content_type`, and `query_length`), even when a particular
+value would not contain PII.
 
 GA4 does not provide session replay, and official templates do not load a replay SDK or capture DOM
-content. Run `node scripts/check-analytics.mjs` before publishing a template.
+content. Google's tag host may be unavailable from mainland China; deployments targeting mainland
+users must validate outbound reachability and should expect zero events when it is blocked. Run
+`node scripts/check-analytics.mjs` before publishing a template.

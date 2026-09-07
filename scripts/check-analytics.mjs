@@ -41,12 +41,19 @@ for (const name of templates) {
   assert(!helperSource.includes('window.location.href'), `${name}: raw URLs must not be reported`);
   assert(helperSource.includes("['pushState', 'replaceState']"), `${name}: SPA navigation is not captured`);
   assert(helperSource.includes("addEventListener('popstate'"), `${name}: browser back/forward is not captured`);
+  assert(helperSource.includes('requestAnimationFrame(trackPageView)'),
+    `${name}: SPA page views must wait for the destination title to render`);
   assert(helperSource.includes('PII_KEY') && helperSource.includes('EMAIL_VALUE'), `${name}: PII guards are missing`);
   assert(helperSource.includes("window.gtag('set', analyticsContext)"), `${name}: application context is not registered`);
   assert(helperSource.includes("track('sign_up')"), `${name}: recommended sign_up event is missing`);
   assert(helperSource.includes("track('login')"), `${name}: recommended login event is missing`);
   assert(helperSource.includes("track('purchase'"), `${name}: recommended purchase event is missing`);
-  assert(helperSource.includes("track('generate_lead'"), `${name}: recommended generate_lead event is missing`);
+  assert(helperSource.includes("form_submitted: 'form_submit'"),
+    `${name}: legacy form submissions must remain non-conversion events`);
+  assert(helperSource.includes("formSubmitted: (formId: string) => track('form_submit'"),
+    `${name}: ordinary forms must not be reported as leads`);
+  assert(helperSource.includes("leadSubmitted: (formId: string) => track('generate_lead'"),
+    `${name}: explicit generate_lead helper is missing`);
   assert(helperSource.includes("process.env.NODE_ENV !== 'production'") || helperSource.includes('import.meta.env.PROD'),
     `${name}: analytics must be production-only`);
   assert(bootstrapSource.includes('initializeAnalytics'), `${name}: analytics is not initialized`);

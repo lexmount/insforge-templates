@@ -8,7 +8,7 @@ const EMAIL_VALUE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EVENT_ALIASES: Record<string, string> = {
   cta_clicked: 'cta_click',
   form_started: 'form_start',
-  form_submitted: 'generate_lead',
+  form_submitted: 'form_submit',
   sign_up_completed: 'sign_up',
   login_completed: 'login',
   purchase_completed: 'purchase',
@@ -89,7 +89,13 @@ function trackPageView(): void {
 function installNavigationTracking(): void {
   if (window.__INSFORGE_GA4_NAVIGATION_TRACKING__) return;
   window.__INSFORGE_GA4_NAVIGATION_TRACKING__ = true;
-  const notify = () => queueMicrotask(trackPageView);
+  const notify = () => {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(trackPageView);
+    } else {
+      window.setTimeout(trackPageView, 0);
+    }
+  };
   for (const method of ['pushState', 'replaceState'] as const) {
     const original = history[method];
     history[method] = function (this: History, ...args: Parameters<History[typeof method]>) {
@@ -150,7 +156,8 @@ export const analytics = {
   reset: resetAnalytics,
   ctaClicked: (ctaId: string, location: string) => track('cta_click', { cta_id: ctaId, location }),
   formStarted: (formId: string) => track('form_start', { form_id: formId }),
-  formSubmitted: (formId: string) => track('generate_lead', { form_id: formId }),
+  formSubmitted: (formId: string) => track('form_submit', { form_id: formId }),
+  leadSubmitted: (formId: string) => track('generate_lead', { form_id: formId }),
   signUpCompleted: () => track('sign_up'),
   loginCompleted: () => track('login'),
   purchaseCompleted: (transactionId: string, value?: number, currency?: string) =>
