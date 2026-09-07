@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createInsforgeServerClient } from '@/lib/insforge';
 import { getCurrentAuthState } from '@/lib/auth-state';
 import { schedule, type Grade } from '@/lib/srs/schedule';
-import { getPostHogClient } from '@/lib/posthog-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,21 +53,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq('id', id);
 
   if (upd.error) return NextResponse.json({ error: upd.error.message }, { status: 500 });
-
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: auth.viewer.id ?? 'anonymous',
-    event: 'flashcard_graded',
-    properties: {
-      card_id: id,
-      grade,
-      next_interval_days: next.interval_days,
-      reps: next.reps,
-    },
-  });
-  // Analytics flush failure must not surface as a 500 for the user;
-  // the write above already succeeded. Swallow the error.
-  await posthog.shutdown().catch(() => undefined);
 
   return NextResponse.json({
     ok: true,
