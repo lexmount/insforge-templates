@@ -1,5 +1,20 @@
 [
   {
+    "slug": "blank",
+    "name": "Blank Web App",
+    "description": "A minimal Vite + React starting point with the InsForge SDK, platform-managed analytics, and an opt-in server-side AI helper that uses the application's managed model provider.",
+    "category": "starter",
+    "framework": "react",
+    "buildProfile": "vite-npm-v1",
+    "publishingCompatibility": "native",
+    "features": ["InsForge SDK", "Managed Analytics", "Optional Managed AI"],
+    "tags": ["blank", "react", "starter", "ai-ready"],
+    "cover": "react/react-starter.png",
+    "demo_url": null,
+    "author": "Lexmount",
+    "added_at": "2026-09-07"
+  },
+  {
     "slug": "e-commerce",
     "name": "Storefront Starter",
     "description": "Launch an online store in an afternoon. Product catalog, cart, wishlist, real Stripe Checkout with Apple Pay and Google Pay, a live order status timeline, and an admin fulfillment flow that marks orders shipped and delivered.",
