@@ -18,7 +18,19 @@ This validates application UI and cookie proxy integration, not a real model or 
 
 The actual template ran against the updated runtime on localhost:25441 and central PostgreSQL-backed credits service on localhost:25440. The runtime fixture issued a signed JWT through the existing sign-in form; subsequent profile and credits requests used the real JWT middleware. The wallet displayed 99.99809 available and 0.001232 reserved credits from runtime settlement tests. A platform-created redemption code added exactly 5 credits (104.99809 available) and a matching ledger entry. A new-key second redemption was rejected with no balance change.
 
-Authentication fixture profile/sign-in data and the upstream model response are controlled local test data. Wallet, redemption, ledger, JWT checks and accounting are the real implementations. Complete persisted-chat and commercial-model acceptance are recorded separately below when available.
+Authentication fixture profile/sign-in data and the upstream model response are controlled local test data. Wallet, redemption, ledger, JWT checks and accounting are the real implementations. The complete runtime check below covers real authentication and persisted chat; commercial-model credentials remain unavailable.
+
+## Complete runtime and persisted chat (2026-09-08)
+
+The template then connected to the actual runtime server on localhost:25445, with all runtime migrations, PostgreSQL and PostgREST (localhost:25444). A real verified UUID user signed in through the normal template form. The unmodified chatbot migration was applied to this isolated database.
+
+- Verified-registration grant appeared exactly once as +10 credits.
+- A browser chat request returned the controlled gateway response `CREDITS_OK`. Available credits changed from 10 to 9.999887; the ledger recorded −0.000113 and held credits returned to zero.
+- Reloading the conversation restored both messages from the database (chat `fb88e1c0-4a5d-41e2-aa5c-b79270450c8f`).
+- Temporarily reducing that test user's available balance to zero caused the next chat request to show the explicit insufficient-credit guidance and history link, retain its input and produce no new answer. The balance was restored to 9.999887 immediately afterward.
+- An HTTP session-refresh check supplied only a real runtime refresh cookie to `/auth/refresh`: it returned 303 to `/credits`, persisted new httpOnly access/refresh cookies, and those cookies successfully authenticated the wallet request.
+
+All authentication, database persistence and credit accounting in this check used real implementations. The model provider was a controlled local LiteLLM-compatible endpoint, not a commercial model. A successful commercial model call remains pending credentials and must not be represented as completed by these results.
 
 ## Required live integration
 

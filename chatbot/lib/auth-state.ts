@@ -1,4 +1,5 @@
 import 'server-only';
+import { redirect } from 'next/navigation';
 
 import type { UserSchema } from '@insforge/sdk';
 import { getAccessToken, getRefreshToken } from '@/lib/auth-cookies';
@@ -25,18 +26,7 @@ function mapUserToViewer(user: UserSchema | null | undefined): AuthViewer {
   };
 }
 
-async function refreshAuthenticatedUser(refreshToken: string) {
-  const insforge = createInsforgeServerClient();
-  const { data, error } = await insforge.auth.refreshSession({ refreshToken });
-
-  if (error || !data?.accessToken || !data.user) {
-    return null;
-  }
-
-  return data.user;
-}
-
-export async function getCurrentViewer(): Promise<AuthViewer> {
+export async function getCurrentViewer(returnTo: '/' | '/credits' = '/'): Promise<AuthViewer> {
   const accessToken = await getAccessToken();
   const refreshToken = await getRefreshToken();
 
@@ -50,8 +40,8 @@ export async function getCurrentViewer(): Promise<AuthViewer> {
   }
 
   if (refreshToken) {
-    const user = await refreshAuthenticatedUser(refreshToken);
-    return mapUserToViewer(user);
+    // Server Components cannot persist rotated cookies. Refresh in a Route Handler.
+    redirect(`/auth/refresh?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   return UNAUTHENTICATED_VIEWER;
