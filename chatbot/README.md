@@ -111,3 +111,22 @@ After cloning the repo and running the starter locally, you can deploy it on Ver
 ## First Try
 
 The empty chat state starts with a welcome heading and three beginner-friendly starter prompts ("Explain a concept", "Improve my writing", "Brainstorm next steps") so you can try the template quickly on localhost or a cloud preview. Selecting a starter prompt fills the input first, so you can adjust it before sending. The prompts are defined in [`components/chat-empty-state.tsx`](./components/chat-empty-state.tsx) and are easy to replace with your own product's use cases.
+
+## Managed user credits
+
+This template includes `/credits` (available balance, reserved credits, redemption and paginated history), plus a credit link in the chat header. The platform owns pricing, grants, wallets and accounting. **Do not create credit tables in the application's database.** No payment, referral or subscription UI is included.
+
+Enable credits in the application management console after deploying a runtime with the user-credits API and provisioning its server-only platform credentials. Existing applications can keep billing disabled or use shadow mode before enforcement. Set an immutable model price version, global/model multipliers and optional verified-registration grant in the platform. Environment credentials, wallet identities, model prices and multipliers never come from the browser. The only template configuration remains the public InsForge URL and anon key.
+
+`lib/credits-client.ts` is the portable client: `wallet()`, `ledger(cursor?)`, and `redeem(code, idempotencyKey)`. Values are **integer microcredit strings** (1 credit = 1,000,000 microcredits); use `formatCredits` for exact display. Retain the same redemption key when retrying an uncertain network result. The server also prevents each user from redeeming the same code twice.
+
+For another template:
+
+1. Copy the lightweight client and adapt `components/credits-panel.tsx` to your UI.
+2. Connect it to authenticated runtime `/api/credits/wallet`, `/api/credits/ledger`, and `/api/credits/redeem`. For cookie-based SSR use the same-origin routes and `lib/credits-proxy.ts`; verify the current session server-side and forward its bearer token. Never forward a client-supplied user, application or environment identifier.
+3. Send AI requests through the application's managed gateway with the verified user's access token. The runtime automatically reserves and settles credits; the template must not deduct points itself.
+4. Preserve HTTP `INSUFFICIENT_CREDITS` errors and SSE failures; refresh the wallet after completed or failed requests. Show redemption/contact-administrator guidance instead of a recharge button.
+
+The AI adapter calls the same managed `/api/ai/chat/completion` gateway directly because the currently locked SDK discards structured stream failures. It requires an explicit successful `done` event before persisting the response as complete. A disconnected request can still consume credits; check history before retrying. Wallets are isolated by application, environment and verified user. Tenant attribution is retained by the platform without tenant-level charging in v1.
+
+Validation: `npm test`, `npm run typecheck`, and `npm run build`. Before enabling enforcement, exercise the template against a test runtime with a real model: verified sign-up grant, code redemption/replay, successful streaming debit, insufficient balance, interrupted stream, ledger pagination and a second user/environment isolation check. Unit test fixtures are not a substitute for this integration acceptance.

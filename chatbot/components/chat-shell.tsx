@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useCallback, useRef, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
+import { WalletLink } from '@/components/credits-panel';
 import { ChatEmptyState } from '@/components/chat-empty-state';
 import { ChatMarkdown } from '@/components/chat-markdown';
 import { Button } from '@/components/ui/button';
@@ -713,7 +714,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
         }
 
         if (event.type === 'error') {
-          streamError = event.error;
+          streamError = event.code === 'INSUFFICIENT_CREDITS' ? 'Insufficient credits. Open Credits to redeem a code or contact your administrator.' : event.error;
         }
       };
 
@@ -755,6 +756,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
       toast.error(message);
     } finally {
       setIsSending(false);
+      window.dispatchEvent(new Event('credits:refresh'));
     }
   }
 
@@ -888,6 +890,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
             <Menu className="size-4" />
           </Button>
           <div className="ml-auto flex items-center gap-2">
+            {initialViewer.isAuthenticated ? <WalletLink /> : null}
             <ThemeToggle />
             <InsforgeBadge />
           </div>
@@ -1024,6 +1027,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
               void handleSendMessage();
             }}
           >
+            {error ? <p role="alert" className="mb-2 text-sm">{error} <Link href="/credits" className="underline">View credits and history</Link></p> : null}
             <div className="w-full rounded-3xl border bg-background p-2 shadow-sm">
               {pendingFiles.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 px-3 pt-2 pb-1">

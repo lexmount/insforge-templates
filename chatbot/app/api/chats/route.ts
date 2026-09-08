@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (!context) {
       return NextResponse.json(
         { error: CHAT_OWNER_REQUIRED_ERROR },
-        { status: 400 },
+        { status: 401 },
       );
     }
 
