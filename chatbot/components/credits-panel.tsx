@@ -17,7 +17,11 @@ export function WalletLink() {
   const [wallet, setWallet] = useState<CreditWallet | null>(null);
   useEffect(() => {
     let active = true;
-    const refresh = () => { void client.wallet().then(value => { if (active) setWallet(value); }).catch(() => { if (active) setWallet(null); }); };
+    let revision = 0;
+    const refresh = () => {
+      const current = ++revision;
+      void client.wallet().then(value => { if (active && current === revision) setWallet(value); }).catch(() => { if (active && current === revision) setWallet(null); });
+    };
     refresh();
     window.addEventListener('credits:refresh', refresh);
     return () => { active = false; window.removeEventListener('credits:refresh', refresh); };
@@ -47,7 +51,7 @@ export function CreditsPanel() {
   async function redeem(event: FormEvent) {
     event.preventDefault();
     const trimmed = code.trim();
-    if (!trimmed || redeeming) return;
+    if (!trimmed || redeeming || loading || !wallet) return;
     if (redemption.current?.code !== trimmed) redemption.current = { code: trimmed, key: crypto.randomUUID() };
     setRedeeming(true); setError(''); setNotice('');
     try {
@@ -84,7 +88,7 @@ export function CreditsPanel() {
       <p className="mb-4 text-sm text-muted-foreground">Need more credits? Redeem a code or contact your application administrator.</p>
       <form onSubmit={redeem} className="max-w-lg space-y-2">
         <label htmlFor="credit-code" className="text-sm font-medium">Redemption code</label>
-        <div className="flex flex-wrap gap-2"><input id="credit-code" className={`${inputClass} min-w-0 flex-1 basis-48`} value={code} onChange={event => setCode(event.target.value)} maxLength={256} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={redeeming} required /><Button type="submit" disabled={redeeming || !code.trim()}>{redeeming ? 'Redeeming…' : 'Redeem code'}</Button></div>
+        <div className="flex flex-wrap gap-2"><input id="credit-code" className={`${inputClass} min-w-0 flex-1 basis-48`} value={code} onChange={event => setCode(event.target.value)} maxLength={256} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={redeeming} required /><Button type="submit" disabled={loading || redeeming || !wallet || !code.trim()}>{redeeming ? 'Redeeming…' : 'Redeem code'}</Button></div>
       </form>
       <p role="status" className="mt-2 text-sm">{notice}</p>
     </section>
