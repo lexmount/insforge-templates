@@ -130,3 +130,7 @@ For another template:
 The AI adapter calls the same managed `/api/ai/chat/completion` gateway directly because the currently locked SDK discards structured stream failures. It requires an explicit successful `done` event before persisting the response as complete. A disconnected request can still consume credits; check history before retrying. Wallets are isolated by application, environment and verified user. Tenant attribution is retained by the platform without tenant-level charging in v1.
 
 Validation: `npm test`, `npm run typecheck`, and `npm run build`. Before enabling enforcement, exercise the template against a test runtime with a real model: verified sign-up grant, code redemption/replay, successful streaming debit, insufficient balance, interrupted stream, ledger pagination and a second user/environment isolation check. Unit test fixtures are not a substitute for this integration acceptance.
+
+### Whole-credit billing
+
+The platform rounds each positively priced AI request up to a whole credit (minimum 1 credit; 1.2 credits becomes 2). Reservations use the same upward rounding. The template displays whole balances and ledger amounts without decimal suffixes, while preserving exact historical fractional values. Do not round or price requests in the client: the platform retains precise usage/cost and returns authoritative microcredit strings.

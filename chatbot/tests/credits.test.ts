@@ -4,6 +4,10 @@ import { createInsforgeAIProvider } from '../lib/ai/providers/insforge';
 
 describe('credit SDK', () => {
   it('formats integer microcredits without float precision loss', () => {
+    expect(formatCredits('1000000')).toBe('1');
+    expect(formatCredits('-2000000')).toBe('-2');
+    expect(formatCredits('0')).toBe('0');
+    expect(formatCredits('9000000')).toBe('9');
     expect(formatCredits('9007199254740993123456')).toBe('9007199254740993.123456');
     expect(formatCredits('-1')).toBe('-0.000001');
     expect(formatCredits('1200000')).toBe('1.2');

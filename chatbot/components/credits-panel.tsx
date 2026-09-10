@@ -81,6 +81,7 @@ export function CreditsPanel() {
         <div><dt className="text-sm text-muted-foreground">Reserved for requests</dt><dd className="break-all text-2xl tabular-nums">{formatCredits(wallet.held)}</dd></div>
       </dl> : loading ? <p className="text-sm text-muted-foreground">Loading balance…</p> : <p className="text-sm">Balance unavailable.</p>}
       {wallet?.mode === 'disabled' || wallet?.mode === 'shadow' ? <p className="mt-3 text-sm">AI requests currently do not deduct your credits.</p> : null}
+      <p className="mt-3 text-sm text-muted-foreground">Billable AI requests are rounded up to whole credits, with a minimum of 1 credit per request. Historical fractional balances remain exact.</p>
       <p className="mt-3 text-sm text-muted-foreground">Credits belong to this application and environment. Reserved credits settle after a request completes.</p>
     </section>
     <section aria-labelledby="redeem-heading" className="border-t border-border pt-6">

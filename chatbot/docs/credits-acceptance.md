@@ -32,7 +32,7 @@ The template then connected to the actual runtime server on localhost:25445, wit
 
 All authentication, database persistence and credit accounting in this check used real implementations. The model provider was a controlled local LiteLLM-compatible endpoint, not a commercial model. The later live-provider check below separately verifies the commercial-model path.
 
-## Live provider through the actual chatbot (2026-09-10)
+## Live provider through the actual chatbot, before whole-credit settlement (2026-09-10)
 
 The same production-built Next.js template on localhost:4320 used the complete runtime on localhost:25445, real authentication, PostgreSQL/PostgREST and central credits service. The runtime connected to the user-authorized real LiteLLM `gpt-5.5` deployment. Provider credentials stayed in a permission-restricted temporary runtime configuration, outside the template and repository.
 
@@ -45,6 +45,15 @@ The same production-built Next.js template on localhost:4320 used the complete r
 - Re-ran all 22 chatbot tests and typecheck successfully. No template code change was needed for the real provider.
 
 This completes the real-answer, actual-token debit, persisted-history and explicit insufficient-balance fallback gate. No production deployment or production wallet adjustment was performed.
+
+## Whole-credit settlement follow-up (2026-09-10)
+
+The platform now rounds positively priced requests and reservations upward to whole credits, with a minimum charge of 1 credit per billable request. Wallet and ledger formatting omit decimal suffixes for exact whole credits; legacy fractional balances retain their actual precision. The wallet explains this rule, and the integration README keeps pricing/rounding authoritative on the platform.
+
+- Runtime acceptance against the real provider passed ordinary and streaming requests under the new policy: the new test user's balance changed 10 → 9 → 8 credits, charging exactly 1 credit for each request.
+- Template validation passed all 22 automated tests (including whole, zero, negative and legacy fractional formatting), typecheck and production build.
+- The updated template was built and restarted, but this specific whole-credit UI change was **not revalidated in the browser**. The computer-use tool terminated the session because it disallowed the current browser URL and explicitly instructed the agent to stop. No browser retry or workaround was attempted after that restriction.
+- The prior actual-browser real-provider answer, ledger, history-refresh and insufficient-balance evidence above remains valid for that earlier run; it is not represented as a new whole-credit UI run. The latest UI copy has code review/build coverage, not browser or DOM assertion coverage.
 
 ## Release checklist
 

@@ -10,6 +10,7 @@ export async function responseError(response: Response): Promise<CreditsError> {
   const code = body.error?.code ?? body.code ?? (typeof body.error === 'string' ? body.error : 'REQUEST_FAILED');
   return new CreditsError(code, body.error?.message ?? body.message ?? body.detail ?? code, response.status);
 }
+/** Whole credits have no decimal suffix; preserve fractional legacy values without rounding. */
 export function formatCredits(value: string): string {
   const number = BigInt(value);
   const absolute = number < 0n ? -number : number;
