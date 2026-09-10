@@ -18,7 +18,7 @@ This validates application UI and cookie proxy integration, not a real model or 
 
 The actual template ran against the updated runtime on localhost:25441 and central PostgreSQL-backed credits service on localhost:25440. The runtime fixture issued a signed JWT through the existing sign-in form; subsequent profile and credits requests used the real JWT middleware. The wallet displayed 99.99809 available and 0.001232 reserved credits from runtime settlement tests. A platform-created redemption code added exactly 5 credits (104.99809 available) and a matching ledger entry. A new-key second redemption was rejected with no balance change.
 
-Authentication fixture profile/sign-in data and the upstream model response are controlled local test data. Wallet, redemption, ledger, JWT checks and accounting are the real implementations. The complete runtime check below covers real authentication and persisted chat; commercial-model credentials remain unavailable.
+Authentication fixture profile/sign-in data and the upstream model response are controlled local test data. Wallet, redemption, ledger, JWT checks and accounting are the real implementations. The complete runtime check below covers real authentication and persisted chat; the later live-provider check covers a real commercial model.
 
 ## Complete runtime and persisted chat (2026-09-08)
 
@@ -30,9 +30,23 @@ The template then connected to the actual runtime server on localhost:25445, wit
 - Temporarily reducing that test user's available balance to zero caused the next chat request to show the explicit insufficient-credit guidance and history link, retain its input and produce no new answer. The balance was restored to 9.999887 immediately afterward.
 - An HTTP session-refresh check supplied only a real runtime refresh cookie to `/auth/refresh`: it returned 303 to `/credits`, persisted new httpOnly access/refresh cookies, and those cookies successfully authenticated the wallet request.
 
-All authentication, database persistence and credit accounting in this check used real implementations. The model provider was a controlled local LiteLLM-compatible endpoint, not a commercial model. A successful commercial model call remains pending credentials and must not be represented as completed by these results.
+All authentication, database persistence and credit accounting in this check used real implementations. The model provider was a controlled local LiteLLM-compatible endpoint, not a commercial model. The later live-provider check below separately verifies the commercial-model path.
 
-## Required live integration
+## Live provider through the actual chatbot (2026-09-10)
+
+The same production-built Next.js template on localhost:4320 used the complete runtime on localhost:25445, real authentication, PostgreSQL/PostgREST and central credits service. The runtime connected to the user-authorized real LiteLLM `gpt-5.5` deployment. Provider credentials stayed in a permission-restricted temporary runtime configuration, outside the template and repository.
+
+- Signed in through the real browser form as the existing isolated test user. Earlier persisted history loaded successfully.
+- Sent “Explain in one short sentence why charging by actual tokens is fair.” The actual provider answered “Charging by actual tokens is fair because you only pay for the exact amount of text processed.”
+- Request `d25586c4-960c-4329-8721-4f5003130608` settled with 43 input tokens, 35 output tokens and zero cache tokens. The explicit local acceptance tariff is 1 microcredit per input token and 2 per output token: `43 + 35 × 2 = 113` microcredits. These are test application prices, not provider cost claims.
+- The visible balance changed from 9.999887 to 9.999774. The credits page showed a matching −0.000113 AI usage entry and zero reserved credits.
+- Reloaded chat `2f964cd9-c585-4c04-9b20-1e71e3a3de7c`; both the prompt and real answer were restored from persisted history.
+- Temporarily adjusted only this isolated user's balance to zero and submitted a follow-up. The UI displayed “Insufficient credits. Open Credits to redeem a code or contact your administrator.” with the credits/history link, preserved the unsent input and added no answer. Immediately restored the balance to 9.999774.
+- Re-ran all 22 chatbot tests and typecheck successfully. No template code change was needed for the real provider.
+
+This completes the real-answer, actual-token debit, persisted-history and explicit insufficient-balance fallback gate. No production deployment or production wallet adjustment was performed.
+
+## Release checklist
 
 Use a disposable application/environment on the updated runtime and platform services. Never connect test redemption/adjustment operations to production.
 
