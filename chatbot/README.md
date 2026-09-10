@@ -124,13 +124,17 @@ For another template:
 
 1. Copy the lightweight client and adapt `components/credits-panel.tsx` to your UI.
 2. Connect it to authenticated runtime `/api/credits/wallet`, `/api/credits/ledger`, and `/api/credits/redeem`. For cookie-based SSR use the same-origin routes and `lib/credits-proxy.ts`; verify the current session server-side and forward its bearer token. Never forward a client-supplied user, application or environment identifier.
-3. Send AI requests through the application's managed gateway with the verified user's access token. The runtime automatically reserves and settles credits; the template must not deduct points itself.
+3. Send AI requests through the application's managed gateway with the authenticated user's access token. The runtime automatically reserves and settles credits; the template must not deduct points itself.
 4. Preserve HTTP `INSUFFICIENT_CREDITS` errors and SSE failures; refresh the wallet after completed or failed requests. Show redemption/contact-administrator guidance instead of a recharge button.
 
-The AI adapter calls the same managed `/api/ai/chat/completion` gateway directly because the currently locked SDK discards structured stream failures. It requires an explicit successful `done` event before persisting the response as complete. A disconnected request can still consume credits; check history before retrying. Wallets are isolated by application, environment and verified user. Tenant attribution is retained by the platform without tenant-level charging in v1.
+The AI adapter calls the same managed `/api/ai/chat/completion` gateway directly because the currently locked SDK discards structured stream failures. It requires an explicit successful `done` event before persisting the response as complete. A disconnected request can still consume credits; check history before retrying. Wallets are isolated by application, environment and authenticated user. Tenant attribution is retained by the platform without tenant-level charging in v1.
 
 Validation: `npm test`, `npm run typecheck`, and `npm run build`. Before enabling enforcement, exercise the template against a test runtime with a real model: verified sign-up grant, code redemption/replay, successful streaming debit, insufficient balance, interrupted stream, ledger pagination and a second user/environment isolation check. Unit test fixtures are not a substitute for this integration acceptance.
 
 ### Whole-credit billing
 
 The platform rounds each positively priced AI request up to a whole credit (minimum 1 credit; 1.2 credits becomes 2). Reservations use the same upward rounding. The template displays whole balances and ledger amounts without decimal suffixes, while preserving exact historical fractional values. Do not round or price requests in the client: the platform retains precise usage/cost and returns authoritative microcredit strings.
+
+### Attachments and billing mode
+
+Unconfigured or disabled billing preserves ordinary image/PDF attachments. Shadow mode observes supported text calls while allowing other modalities without deductions. Enforced billing currently supports text chat and text files only; image/PDF attachments, including those in earlier messages, cannot be billed. The template preserves attachment history and shows a specific error with an explicit new text-only conversation action. It never silently drops prior attachments. Existing attachment conversations remain available to read and work again when billing is disabled. Authentication means a valid user session; email verification is required separately for configured verified-registration rewards.

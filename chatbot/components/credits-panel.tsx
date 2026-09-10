@@ -3,29 +3,27 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { createCreditsClient, CreditsError, formatCredits, type CreditEntry, type CreditWallet } from '@/lib/credits-client';
+import { createCreditsClient, creditsUnavailable, creditsErrorMessage, refreshCreditHistory, redemptionKey, formatCredits, type CreditEntry, type CreditWallet } from '@/lib/credits-client';
 
 const client = createCreditsClient();
 const inputClass = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50';
-function errorMessage(error: unknown) {
-  if (error instanceof CreditsError && error.code === 'CREDITS_NOT_CONFIGURED') return 'Credits are not enabled for this application. You can return to chat.';
-  if (error instanceof CreditsError && error.code === 'CREDITS_UNAVAILABLE') return 'Credits are temporarily unavailable. Please try again later.';
-  if (error instanceof CreditsError && error.status === 401) return 'Your session expired. Sign in again to view your credits.';
-  return error instanceof Error ? error.message : 'Unable to load credits. Please try again.';
-}
 export function WalletLink() {
   const [wallet, setWallet] = useState<CreditWallet | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
     let active = true;
     let revision = 0;
+    let notConfigured = false;
     const refresh = () => {
+      if (notConfigured) return;
       const current = ++revision;
-      void client.wallet().then(value => { if (active && current === revision) setWallet(value); }).catch(() => { if (active && current === revision) setWallet(null); });
+      void client.wallet().then(value => { if (active && current === revision) setWallet(value); }).catch(failure => { if (active && current === revision) { setWallet(null); notConfigured = creditsUnavailable(failure); setUnavailable(notConfigured); } });
     };
     refresh();
     window.addEventListener('credits:refresh', refresh);
     return () => { active = false; window.removeEventListener('credits:refresh', refresh); };
   }, []);
+  if (unavailable || !wallet) return null;
   return <Link href="/credits" className="max-w-48 truncate rounded-md px-2 py-2 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">{wallet && wallet.mode !== 'disabled' && wallet.mode !== 'shadow' ? `${formatCredits(wallet.available)} credits` : 'Credits'}</Link>;
 }
 export function CreditsPanel() {
@@ -38,13 +36,18 @@ export function CreditsPanel() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [code, setCode] = useState('');
+  const [unavailable, setUnavailable] = useState(false);
+  const visibleEntries = useRef<CreditEntry[]>([]);
+  visibleEntries.current = entries;
   const redemption = useRef<{ code: string; key: string } | null>(null);
   const reload = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [balance, page] = await Promise.all([client.wallet(), client.ledger()]);
+      const balance = await client.wallet();
+      setUnavailable(false);
+      const page = await refreshCreditHistory(client, visibleEntries.current);
       setWallet(balance); setEntries(page.items); setCursor(page.nextCursor);
-    } catch (failure) { setError(errorMessage(failure)); }
+    } catch (failure) { setUnavailable(creditsUnavailable(failure)); setError(creditsErrorMessage(failure)); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void reload(); }, [reload]);
@@ -52,14 +55,13 @@ export function CreditsPanel() {
     event.preventDefault();
     const trimmed = code.trim();
     if (!trimmed || redeeming || loading || !wallet) return;
-    if (redemption.current?.code !== trimmed) redemption.current = { code: trimmed, key: crypto.randomUUID() };
     setRedeeming(true); setError(''); setNotice('');
     try {
-      const nextWallet = await client.redeem(trimmed, redemption.current.key);
-      setWallet(nextWallet); setCode(''); redemption.current = null;
+      if (redemption.current?.code !== trimmed) redemption.current = { code: trimmed, key: redemptionKey() };
+      await client.redeem(trimmed, redemption.current.key); setCode(''); redemption.current = null;
       setNotice('Code redeemed. Your credits are available.');
       await reload();
-    } catch (failure) { setError(errorMessage(failure)); }
+    } catch (failure) { setError(creditsErrorMessage(failure)); }
     finally { setRedeeming(false); }
   }
   async function loadMore() {
@@ -69,9 +71,10 @@ export function CreditsPanel() {
       const page = await client.ledger(cursor);
       setEntries(previous => [...previous, ...page.items.filter(item => !previous.some(existing => existing.id === item.id))]);
       setCursor(page.nextCursor);
-    } catch (failure) { setError(errorMessage(failure)); }
+    } catch (failure) { setError(creditsErrorMessage(failure)); }
     finally { setPaging(false); }
   }
+  if (unavailable) return <p role="status">Credits are not available for this application. <Link href="/" className="underline">Back to chat</Link></p>;
   return <div className="space-y-8" data-private>
     {error ? <div role="alert" className="space-y-2 rounded-md border border-border p-4 text-sm"><p>{error}</p><div className="flex gap-4"><button type="button" onClick={() => void reload()} className="underline">Refresh balance</button>{error.includes('Your session expired') ? <Link href="/auth/sign-in" className="underline">Sign in</Link> : null}</div></div> : null}
     <section aria-labelledby="balance-heading" aria-busy={loading}>
@@ -98,7 +101,7 @@ export function CreditsPanel() {
       {!loading && entries.length === 0 ? <p className="text-sm text-muted-foreground">No transactions yet. Grants, redemptions and AI usage will appear here.</p> : null}
       <ul className="divide-y divide-border">{entries.map(entry => <li key={entry.id} className="flex items-start justify-between gap-4 py-3">
         <div className="min-w-0"><p className="break-words text-sm font-medium">{entry.kind === 'redemption' ? 'Code redeemed' : entry.reason || entry.kind}</p><p className="text-xs text-muted-foreground"><time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString()}</time> · {entry.kind}</p></div>
-        <div className="max-w-[45%] break-all text-right text-sm tabular-nums"><p>{BigInt(entry.amount) > 0n ? '+' : ''}{formatCredits(entry.amount)}</p><p className="text-xs text-muted-foreground">Balance {formatCredits(entry.balanceAfter)}</p></div>
+        <div className="max-w-[45%] break-all text-right text-sm tabular-nums"><p>{typeof entry.amount === 'string' && /^\d+$/.test(entry.amount) && BigInt(entry.amount) > 0n ? '+' : ''}{formatCredits(entry.amount)}</p><p className="text-xs text-muted-foreground">Balance {formatCredits(entry.balanceAfter)}</p></div>
       </li>)}</ul>
       {cursor ? <Button type="button" variant="outline" onClick={() => void loadMore()} disabled={paging || loading}>{paging ? 'Loading…' : 'Load older transactions'}</Button> : null}
     </section>

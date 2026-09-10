@@ -69,3 +69,9 @@ Use a disposable application/environment on the updated runtime and platform ser
 - Validate an unconfigured runtime reports that credits are not enabled, and an unavailable configured service reports a temporary failure.
 
 Record actual runtime and platform acceptance in the coordinating PR before release. No paid top-up, referral or automatic renewal path is included.
+
+## Review follow-up: optional billing and attachments
+
+The companion runtime must resolve policy mode rather than treating configured credentials as enabled billing. Disabled deployments preserve the original attachment and anonymous-call behavior; shadow observes billable text and logs unsupported categories without charging. Enforced V1 supports text and text-like attachments only. Images/PDFs in either the new message or its history receive an explicit explanation and an action to start a new text-only conversation. Existing attachment content is preserved, never silently stripped from history.
+
+Before release also verify: (1) a disabled application with an image/PDF history can continue chatting, (2) the same enforced conversation shows the explicit attachment limitation and recovery action, (3) an unconfigured/old runtime hides the wallet navigation after discovery, (4) network failures do not misleadingly link to credits. The new unit/component regressions cover malformed amounts, HTML/empty upstream errors, unavailable wallet navigation, expanded-history refresh, secure-context redemption errors and conditional chat recovery. A new live browser run is not claimed while the previously recorded browser-tool restriction remains in effect.

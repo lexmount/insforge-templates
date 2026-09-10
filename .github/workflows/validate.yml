@@ -126,7 +126,9 @@ jobs:
             node scripts/verify-publishable-template.mjs "$slug"
           done
 
+  # The chatbot has focused auth/credits tests in addition to controlled template builds.
   chatbot-credits:
+    needs: [validate-registry]
     name: Chatbot authentication and credits
     runs-on: ubuntu-latest
     steps:

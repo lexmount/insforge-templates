@@ -28,7 +28,7 @@ export async function proxyCredits(request: Request, operation: 'wallet' | 'ledg
   }
   try {
     const upstream = await fetch(url, { method: operation === 'redeem' ? 'POST' : 'GET', headers, body, cache: 'no-store', signal: AbortSignal.timeout(15000) });
-    return new Response(await upstream.text(), { status: upstream.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    return new Response(await upstream.text(), { status: upstream.status, headers: { 'Content-Type': upstream.headers.get('content-type') ?? 'text/plain', 'Cache-Control': 'no-store' } });
   } catch {
     return Response.json({ error: 'UNAVAILABLE', message: 'Unable to reach credits. Try again with the same code.' }, { status: 503 });
   }
