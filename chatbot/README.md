@@ -138,3 +138,9 @@ The platform rounds each positively priced AI request up to a whole credit (mini
 ### Attachments and billing mode
 
 Unconfigured or disabled billing preserves ordinary image/PDF attachments. Shadow mode observes supported text calls while allowing other modalities without deductions. Enforced billing currently supports text chat and text files only; image/PDF attachments, including those in earlier messages, cannot be billed. The template preserves attachment history and shows a specific error with an explicit new text-only conversation action. It never silently drops prior attachments. Existing attachment conversations remain available to read and work again when billing is disabled. Authentication means a valid user session; email verification is required separately for configured verified-registration rewards.
+
+### Failure and recovery behavior
+
+String chat errors retain their original message; malformed/empty gateway bodies retain the HTTP status. Only `CREDITS_NOT_CONFIGURED` disables wallet discovery for the current mount. Temporary errors, including generic 404s, can recover on window focus, network reconnection or `credits:refresh`; an established Credits link remains available. A ledger error does not hide a successfully loaded balance.
+
+History refresh deduplicates rows and reads at most 20 pages, retaining the cursor for loading older transactions. Same-origin credit proxies only serve JSON or plain text with `nosniff`; upstream HTML is never served as HTML. CI runs chatbot tests (including chat-shell component recovery), type checking and the production Next build.

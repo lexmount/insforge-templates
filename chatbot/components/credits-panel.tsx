@@ -17,11 +17,13 @@ export function WalletLink() {
     const refresh = () => {
       if (notConfigured) return;
       const current = ++revision;
-      void client.wallet().then(value => { if (active && current === revision) setWallet(value); }).catch(failure => { if (active && current === revision) { setWallet(null); notConfigured = creditsUnavailable(failure); setUnavailable(notConfigured); } });
+      void client.wallet().then(value => { if (active && current === revision) setWallet(value); }).catch(failure => { if (active && current === revision) { notConfigured = creditsUnavailable(failure); setUnavailable(notConfigured); } });
     };
     refresh();
     window.addEventListener('credits:refresh', refresh);
-    return () => { active = false; window.removeEventListener('credits:refresh', refresh); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => { active = false; window.removeEventListener('credits:refresh', refresh); window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh); };
   }, []);
   if (unavailable || !wallet) return null;
   return <Link href="/credits" className="max-w-48 truncate rounded-md px-2 py-2 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">{wallet && wallet.mode !== 'disabled' && wallet.mode !== 'shadow' ? `${formatCredits(wallet.available)} credits` : 'Credits'}</Link>;
@@ -43,10 +45,11 @@ export function CreditsPanel() {
   const reload = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const balance = await client.wallet();
-      setUnavailable(false);
-      const page = await refreshCreditHistory(client, visibleEntries.current);
-      setWallet(balance); setEntries(page.items); setCursor(page.nextCursor);
+      const [balance, history] = await Promise.allSettled([client.wallet(), refreshCreditHistory(client, visibleEntries.current)]);
+      if (balance.status === 'rejected') throw balance.reason;
+      setUnavailable(false); setWallet(balance.value);
+      if (history.status === 'fulfilled') { setEntries(history.value.items); setCursor(history.value.nextCursor); }
+      else setError(creditsErrorMessage(history.reason));
     } catch (failure) { setUnavailable(creditsUnavailable(failure)); setError(creditsErrorMessage(failure)); }
     finally { setLoading(false); }
   }, []);

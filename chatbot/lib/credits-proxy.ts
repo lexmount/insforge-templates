@@ -21,14 +21,14 @@ export async function proxyCredits(request: Request, operation: 'wallet' | 'ledg
     const input = await request.json().catch(() => null);
     if (typeof input?.code !== 'string' || !input.code.trim() || input.code.length > 256) return Response.json({ error: 'INVALID_CODE', message: 'Enter a valid redemption code.' }, { status: 400 });
     const key = request.headers.get('Idempotency-Key');
-    if (!key || !/^[\x20-\x7e]{8,128}$/.test(key)) return Response.json({ error: 'INVALID_IDEMPOTENCY_KEY' }, { status: 400 });
+    if (!key || !/^[\x21-\x7e]{8,128}$/.test(key)) return Response.json({ error: 'INVALID_IDEMPOTENCY_KEY' }, { status: 400 });
     headers['Content-Type'] = 'application/json';
     headers['Idempotency-Key'] = key;
     body = JSON.stringify({ code: input.code.trim() });
   }
   try {
     const upstream = await fetch(url, { method: operation === 'redeem' ? 'POST' : 'GET', headers, body, cache: 'no-store', signal: AbortSignal.timeout(15000) });
-    return new Response(await upstream.text(), { status: upstream.status, headers: { 'Content-Type': upstream.headers.get('content-type') ?? 'text/plain', 'Cache-Control': 'no-store' } });
+    return new Response(await upstream.text(), { status: upstream.status, headers: { 'Content-Type': upstream.headers.get('content-type')?.split(';')[0].trim().toLowerCase() === 'application/json' ? 'application/json' : 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   } catch {
     return Response.json({ error: 'UNAVAILABLE', message: 'Unable to reach credits. Try again with the same code.' }, { status: 503 });
   }

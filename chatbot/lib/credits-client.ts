@@ -9,7 +9,7 @@ export async function responseError(response: Response): Promise<CreditsError> {
   const parsed = await response.json().catch(() => null);
   const body = parsed && typeof parsed === 'object' ? parsed : {};
   const code = body.error?.code ?? body.code ?? (typeof body.error === 'string' ? body.error : 'REQUEST_FAILED');
-  return new CreditsError(code, body.error?.message ?? body.message ?? body.detail ?? `Request failed (HTTP ${response.status}). Please try again.`, response.status);
+  return new CreditsError(code, body.error?.message ?? body.message ?? body.detail ?? (typeof body.error === 'string' ? body.error : undefined) ?? `Request failed (HTTP ${response.status}). Please try again.`, response.status);
 }
 /** Whole credits have no decimal suffix; preserve fractional legacy values without rounding. */
 export function formatCredits(value: string): string {
@@ -36,7 +36,7 @@ export function createCreditsClient(baseUrl = '/api/credits', fetcher: typeof fe
 }
 
 export function creditsUnavailable(error: unknown) {
-  return error instanceof CreditsError && (error.code === 'CREDITS_NOT_CONFIGURED' || error.status === 404);
+  return error instanceof CreditsError && error.code === 'CREDITS_NOT_CONFIGURED';
 }
 export function creditsErrorMessage(error: unknown) {
   if (creditsUnavailable(error)) return 'Credits are not available for this application. You can return to chat.';
@@ -48,12 +48,15 @@ export function creditsErrorMessage(error: unknown) {
 export async function refreshCreditHistory(client: Pick<ReturnType<typeof createCreditsClient>, 'ledger'>, previous: CreditEntry[]) {
   const oldest = previous.at(-1)?.id;
   let page = await client.ledger();
-  const items = [...page.items];
+  const items = [...new Map(page.items.map(item => [item.id, item])).values()];
+  const ids = new Set(items.map(item => item.id));
+  let pages = 1;
   const seen = new Set<string>();
-  while (oldest && !items.some(item => item.id === oldest) && page.nextCursor && !seen.has(page.nextCursor)) {
+  while (pages < 20 && oldest && !items.some(item => item.id === oldest) && page.nextCursor && !seen.has(page.nextCursor)) {
     seen.add(page.nextCursor);
     page = await client.ledger(page.nextCursor);
-    items.push(...page.items);
+    pages++;
+    for (const item of page.items) if (!ids.has(item.id)) { items.push(item); ids.add(item.id); }
   }
   return { items, nextCursor: page.nextCursor };
 }

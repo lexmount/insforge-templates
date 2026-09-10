@@ -44,5 +44,6 @@ it('preserves non-JSON upstream content types', async () => {
  vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response('gateway unavailable',{status:502,headers:{'Content-Type':'text/plain'}}));
  const response=await proxyCredits(new Request('https://app.test/api/credits/wallet'),'wallet');
  expect(response.status).toBe(502);
- expect(response.headers.get('content-type')).toBe('text/plain');
+ expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+ expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
 });

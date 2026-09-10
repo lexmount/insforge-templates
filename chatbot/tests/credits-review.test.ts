@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { creditsErrorMessage, creditsUnavailable, formatCredits, redemptionKey, refreshCreditHistory, responseError, type CreditEntry } from '../lib/credits-client';
+import { createCreditsClient, CreditsError, creditsErrorMessage, creditsUnavailable, formatCredits, redemptionKey, refreshCreditHistory, responseError, type CreditEntry } from '../lib/credits-client';
 import { chatFailure } from '../lib/chat-error';
 afterEach(() => vi.unstubAllGlobals());
 describe('review regressions', () => {
@@ -10,7 +10,7 @@ describe('review regressions', () => {
     const error = await responseError(new Response('<html>gateway</html>', { status }));
     expect(error.message).toContain(`HTTP ${status}`);
     expect(creditsErrorMessage(error)).not.toContain('REQUEST_FAILED');
-    expect(creditsUnavailable(error)).toBe(status === 404);
+    expect(creditsUnavailable(error)).toBe(false);
   });
   it('only directs billing errors to the credits page and gives an explicit attachment recovery', () => {
     expect(chatFailure('INSUFFICIENT_CREDITS','x').action).toBe('credits');
@@ -32,4 +32,22 @@ describe('review regressions', () => {
     expect(page.nextCursor).toBe('c2');
     expect(ledger).toHaveBeenCalledTimes(2);
   });
+});
+
+it.each([401, 400, 500])('preserves string chat errors for HTTP %s', async status => {
+ const error = await responseError(Response.json({error:'Actual chat failure'}, {status}));
+ expect(error.message).toBe('Actual chat failure');
+});
+it('reports malformed successful JSON responses and maps authentication/server failures', async () => {
+ const client = createCreditsClient('/credits', vi.fn().mockResolvedValue(new Response('invalid')));
+ await expect(client.wallet()).rejects.toMatchObject({code:'INVALID_RESPONSE',status:502});
+ expect(creditsErrorMessage(new CreditsError('AUTH_REQUIRED','x',401))).toContain('Sign in again');
+ expect(creditsErrorMessage(new CreditsError('UNAVAILABLE','x',503))).toContain('temporarily');
+ expect(chatFailure(undefined,'').message).toContain('failed');
+});
+it('bounds and deduplicates history refresh when the old row cannot be found', async () => {
+ let n=0;
+ const ledger=vi.fn(async () => ({items:[{id:'duplicate'} as CreditEntry],nextCursor:`page-${++n}`}));
+ const page=await refreshCreditHistory({ledger},[{id:'missing'} as CreditEntry]);
+ expect(ledger).toHaveBeenCalledTimes(20); expect(page.items).toHaveLength(1); expect(page.nextCursor).toBe('page-20');
 });

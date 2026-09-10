@@ -144,3 +144,5 @@ jobs:
         working-directory: chatbot
       - run: npm run typecheck
         working-directory: chatbot
+      - run: npm run build
+        working-directory: chatbot
