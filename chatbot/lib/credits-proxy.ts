@@ -4,7 +4,7 @@ export async function proxyCredits(request: Request, operation: 'wallet' | 'ledg
   const context = await resolveChatOwnerContext();
   if (!context) return Response.json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please sign in again.' }, { status: 401 });
   const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  if (!baseUrl) return Response.json({ error: 'UNAVAILABLE', message: 'Credits are unavailable. Contact your administrator.' }, { status: 503 });
+  if (!baseUrl) return Response.json({ error: 'CREDITS_NOT_CONFIGURED', message: 'Credits are unavailable. Contact your administrator.' }, { status: 503 });
   const url = new URL(`/api/credits/${operation}`, baseUrl);
   const headers: Record<string, string> = { Authorization: `Bearer ${context.accessToken}` };
   let body: string | undefined;

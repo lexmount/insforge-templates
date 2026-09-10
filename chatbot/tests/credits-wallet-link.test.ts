@@ -46,3 +46,9 @@ it('keeps a valid balance when only history fails', async () => {
  expect(node.textContent).toContain('Available credits'); expect(node.querySelector('dd')?.textContent).toBe('2');
  expect(node.querySelector('[role="alert"]')).not.toBeNull();
 });
+
+it('recovers initial discovery on network reconnection',async()=>{
+ state.wallet.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({mode:'enforced',available:'3000000'});
+ await act(async()=>root.render(React.createElement(WalletLink)));expect(node.querySelector('a')).toBeNull();
+ await act(async()=>window.dispatchEvent(new Event('online')));expect(node.textContent).toContain('3 credits');
+});

@@ -47,3 +47,18 @@ it('preserves non-JSON upstream content types', async () => {
  expect(response.headers.get('x-content-type-options')).toBe('nosniff');
  expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
 });
+
+it('distinguishes missing configuration from a temporary outage',async()=>{
+ const fetcher=vi.spyOn(globalThis,'fetch').mockRejectedValue(new Error('network'));
+ delete process.env.NEXT_PUBLIC_INSFORGE_URL;
+ const missing=await proxyCredits(new Request('https://app.test/api/credits/wallet'),'wallet');
+ expect(await missing.json()).toMatchObject({error:'CREDITS_NOT_CONFIGURED'});expect(fetcher).not.toHaveBeenCalled();
+ process.env.NEXT_PUBLIC_INSFORGE_URL='https://runtime.test';
+ const outage=await proxyCredits(new Request('https://app.test/api/credits/wallet'),'wallet');
+ expect(await outage.json()).toMatchObject({error:'UNAVAILABLE'});
+});
+it('rejects embedded spaces in idempotency keys without forwarding',async()=>{
+ const fetcher=vi.spyOn(globalThis,'fetch');
+ const result=await proxyCredits(request({code:'gift'},'retry key-123'),'redeem');
+ expect(result.status).toBe(400);expect(fetcher).not.toHaveBeenCalled();
+});

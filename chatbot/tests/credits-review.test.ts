@@ -51,3 +51,10 @@ it('bounds and deduplicates history refresh when the old row cannot be found', a
  const page=await refreshCreditHistory({ledger},[{id:'missing'} as CreditEntry]);
  expect(ledger).toHaveBeenCalledTimes(20); expect(page.items).toHaveLength(1); expect(page.nextCursor).toBe('page-20');
 });
+
+it('deduplicates repeated IDs inside the first history page',async()=>{
+ const entry={id:'one'} as CreditEntry;
+ const ledger=vi.fn().mockResolvedValue({items:[entry,entry],nextCursor:null});
+ const result=await refreshCreditHistory({ledger},[]);
+ expect(result.items).toEqual([entry]);expect(ledger).toHaveBeenCalledOnce();
+});
