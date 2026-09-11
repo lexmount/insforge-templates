@@ -1,4 +1,6 @@
 'use client';
+import { chatFailure } from '@/lib/chat-error';
+import { CreditsError, responseError } from '@/lib/credits-client';
 
 import {
   format,
@@ -30,6 +32,7 @@ import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useCallback, useRef, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
+import { WalletLink } from '@/components/credits-panel';
 import { ChatEmptyState } from '@/components/chat-empty-state';
 import { ChatMarkdown } from '@/components/chat-markdown';
 import { Button } from '@/components/ui/button';
@@ -292,6 +295,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<'credits' | 'new-chat' | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -330,7 +334,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
 
     async function bootstrap() {
       setIsBootstrapping(true);
-      setError(null);
+      setError(null); setErrorAction(null);
 
       try {
         const response = await fetch(
@@ -440,7 +444,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
     if (!ownerInfo) return;
 
     setIsLoadingThread(true);
-    setError(null);
+    setError(null); setErrorAction(null);
 
     try {
       const response = await fetch(
@@ -486,7 +490,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
     setMessages([]);
     setInput('');
     setPendingFiles([]);
-    setError(null);
+    setError(null); setErrorAction(null);
     setSidebarOpen(false);
     setAccountMenuOpen(false);
   }
@@ -548,7 +552,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    setError(null);
+    setError(null); setErrorAction(null);
 
     try {
       const uploaded: Attachment[] = [];
@@ -629,7 +633,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
     const previousActiveChatId = activeChatId;
     const previousChats = chats;
     const previousMessages = messages;
-    setError(null);
+    setError(null); setErrorAction(null);
     setInput('');
     setPendingFiles([]);
     setMessages([...messages, optimisticMessage, streamingAssistantMessage]);
@@ -648,7 +652,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
       });
 
       if (!response.ok) {
-        throw new Error(await getErrorMessage(response));
+        throw await responseError(response);
       }
 
       if (!response.body) {
@@ -659,7 +663,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
       const decoder = new TextDecoder();
       let buffer = '';
       let finalEventReceived = false;
-      let streamError: string | null = null;
+      let streamError: CreditsError | null = null;
 
       const processStreamLine = (line: string) => {
         const event = parseChatStreamLine(line);
@@ -713,7 +717,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
         }
 
         if (event.type === 'error') {
-          streamError = event.error;
+          streamError = new CreditsError(event.code ?? 'CHAT_FAILED', event.error, 400);
         }
       };
 
@@ -736,15 +740,16 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
       }
 
       if (streamError) {
-        throw new Error(streamError);
+        throw streamError;
       }
 
       if (!finalEventReceived) {
         throw new Error('The chat stream ended before completion.');
       }
     } catch (sendError) {
-      const message =
-        sendError instanceof Error ? sendError.message : 'The chat request failed.';
+      const failure = chatFailure(sendError instanceof CreditsError ? sendError.code : undefined, sendError instanceof Error ? sendError.message : 'The chat request failed.');
+      const message = failure.message;
+      setErrorAction(failure.action);
 
       setMessages(previousMessages);
       setActiveChatId(previousActiveChatId);
@@ -755,6 +760,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
       toast.error(message);
     } finally {
       setIsSending(false);
+      window.dispatchEvent(new Event('credits:refresh'));
     }
   }
 
@@ -888,6 +894,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
             <Menu className="size-4" />
           </Button>
           <div className="ml-auto flex items-center gap-2">
+            {initialViewer.isAuthenticated ? <WalletLink /> : null}
             <ThemeToggle />
             <InsforgeBadge />
           </div>
@@ -1024,6 +1031,7 @@ export function ChatShell({ initialViewer }: { initialViewer: AuthViewer }) {
               void handleSendMessage();
             }}
           >
+            {error ? <p role="alert" className="mb-2 text-sm">{error} {errorAction === 'credits' ? <Link href="/credits" className="underline">View credits and history</Link> : errorAction === 'new-chat' ? <button type="button" className="underline" onClick={handleNewChat}>Start a new text-only conversation</button> : null}</p> : null}
             <div className="w-full rounded-3xl border bg-background p-2 shadow-sm">
               {pendingFiles.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 px-3 pt-2 pb-1">

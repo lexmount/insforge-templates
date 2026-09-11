@@ -28,7 +28,7 @@ export async function GET(
     if (!ownerContext) {
       return NextResponse.json(
         { error: CHAT_OWNER_REQUIRED_ERROR },
-        { status: 400 },
+        { status: 401 },
       );
     }
 
@@ -68,7 +68,7 @@ export async function DELETE(
     if (!ownerContext) {
       return NextResponse.json(
         { error: CHAT_OWNER_REQUIRED_ERROR },
-        { status: 400 },
+        { status: 401 },
       );
     }
 

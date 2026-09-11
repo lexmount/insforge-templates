@@ -8,6 +8,7 @@ import type {
   SendMessageResponse,
 } from '@/lib/types';
 import { DEFAULT_SYSTEM_PROMPT, getConfiguredModel, getInsforgeServerClient, createInsforgeServerClient } from '@/lib/insforge';
+import { CreditsError } from '@/lib/credits-client';
 import { createAIProvider } from '@/lib/ai';
 import type { UserContentPart, FileParserOptions } from '@/lib/ai';
 
@@ -478,11 +479,15 @@ export async function streamMessage(input: {
 }) {
   const prepared = await prepareMessageRequest(input);
   const encoder = new TextEncoder();
+  let disconnected = false;
 
   return new ReadableStream<Uint8Array>({
+    cancel() { disconnected = true; },
     start(controller) {
       const writeEvent = (event: Record<string, unknown>) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        if (disconnected) return;
+        try { controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); }
+        catch { disconnected = true; }
       };
 
       return (async () => {
@@ -491,7 +496,7 @@ export async function streamMessage(input: {
         try {
           writeEvent({ type: 'chat', chat: prepared.chat });
 
-          const provider = await createAIProvider(prepared.insforgeClient);
+          const provider = await createAIProvider(prepared.token);
 
           const stream = await provider.streamCompletion({
             model: prepared.requestedModel,
@@ -531,16 +536,17 @@ export async function streamMessage(input: {
           });
 
           writeEvent({ type: 'done', payload });
-          controller.close();
+          if (!disconnected) controller.close();
         } catch (error) {
           writeEvent({
             type: 'error',
+            code: error instanceof CreditsError ? error.code : 'AI_REQUEST_FAILED',
             error:
               error instanceof Error
                 ? error.message
                 : 'The AI provider could not complete the request.',
           });
-          controller.close();
+          if (!disconnected) controller.close();
         }
       })();
     },

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getInsforgeServerClient } from '@/lib/insforge';
+import { createInsforgeServerClient } from '@/lib/insforge';
+import { resolveChatOwnerContext } from '@/lib/chat-request';
 import {
   UPLOAD_BUCKET,
   MAX_FILE_SIZE,
@@ -11,6 +12,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    const context = await resolveChatOwnerContext();
+    if (!context) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const insforge = getInsforgeServerClient();
+    const insforge = createInsforgeServerClient({ accessToken: context.accessToken });
     const { data, error } = await insforge.storage
       .from(UPLOAD_BUCKET)
       .uploadAuto(file);
